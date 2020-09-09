@@ -1,5 +1,30 @@
-# comlaude/d2-amqp
+# ComLaude/d2-amqp
 Simple PhpAmqpLib wrapper for interaction with RabbitMQ 
+
+## Installation
+
+Add to composer.json.
+
+```js
+"repositories": [
+    {
+        "type": "package",
+        "package": {
+            "name": "comlaude/d2-amqp",
+            "version": "1.0.0",
+            "type": "package",
+            "source": {
+                "url": "git@github.com:ComLaude/d2-amqp.git",
+                "type": "git",
+                "reference": "master"
+            },
+            "autoload": {
+                "classmap": ["src/"]
+            }
+        }
+    }
+],
+```
 
 ## Integration
 
