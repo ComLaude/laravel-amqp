@@ -112,7 +112,7 @@ Open **config/app.php** and add the service provider and alias:
     Amqp::publish('routing-key', 'message');
 ```
 
-### Push message with routing key and create queue
+### Push message with routing key and custom queue
 
 ```php	
     Amqp::publish('routing-key', 'message' , ['queue' => 'queue-name']);
@@ -127,28 +127,14 @@ Open **config/app.php** and add the service provider and alias:
 
 ## Consuming messages
 
-### Consume messages, acknowledge and stop when no message is left
-
-```php
-Amqp::consume('queue-name', function ($message, $resolver) {
-    		
-   var_dump($message->body);
-
-   $resolver->acknowledge($message);
-
-   $resolver->stopWhenProcessed();
-        
-});
-```
-
 ### Consume messages forever
 
 ```php
-Amqp::consume('queue-name', function ($message, $resolver) {
+Amqp::consume(function ($message) {
     		
    var_dump($message->body);
 
-   $resolver->acknowledge($message);
+   Amqp::acknowledge($message);
         
 });
 ```
@@ -156,15 +142,17 @@ Amqp::consume('queue-name', function ($message, $resolver) {
 ### Consume messages, with custom settings
 
 ```php
-Amqp::consume('queue-name', function ($message, $resolver) {
+Amqp::consume(function ($message) {
     		
    var_dump($message->body);
 
-   $resolver->acknowledge($message);
+   Amqp::acknowledge($message);
       
 }, [
 	'timeout' => 2,
-	'vhost'   => 'vhost3'
+    'vhost'   => 'vhost3',
+    'queue'   => 'queue-name',
+    'persistent' => true // required if you want to listen forever
 ]);
 ```
 
@@ -176,20 +164,5 @@ Amqp::consume('queue-name', function ($message, $resolver) {
 \Amqp::publish('', 'message' , [
     'exchange_type' => 'fanout',
     'exchange' => 'amq.fanout',
-]);
-```
-
-### Consuming messages
-
-```php
-\Amqp::consume('', function ($message, $resolver) {
-    var_dump($message->body);
-    $resolver->acknowledge($message);
-}, [
-    'exchange' => 'amq.fanout',
-    'exchange_type' => 'fanout',
-    'queue_force_declare' => true,
-    'queue_exclusive' => true,
-    'persistent' => true // required if you want to listen forever
 ]);
 ```

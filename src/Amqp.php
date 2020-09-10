@@ -19,12 +19,10 @@ class Amqp
      * @param mixed $message
      * @param array $properties
      */
-    public function publish($routing, $message, array $properties = [])
+    public function publish($route, $message, array $properties = [])
     {
         $message = new AMQPMessage($message);
-        AmqpChannel::create($properties)->publish(function($channel, $exchange) use($message, $routing) {
-            $channel->basic_publish($message, $exchange, $routing);
-        });
+        AmqpChannel::create($properties)->publish($route, $message);
     }
 
     /**

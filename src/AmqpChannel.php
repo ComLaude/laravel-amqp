@@ -228,7 +228,7 @@ class AmqpChannel
     }
 
     /**
-     * Acknowledges the message
+     * Checks if the message is in any of the failed acknowledgement caches
      * 
      * @param AMQPMessage $message
      */
@@ -249,7 +249,7 @@ class AmqpChannel
     }
 
     /**
-     * Acknowledges the message
+     * Skips a message by acknowledging it according to cached state
      * 
      * @param AMQPMessage $message
      */
@@ -270,7 +270,7 @@ class AmqpChannel
     }
 
     /**
-     * Acknowledges the message
+     * Acknowledges the message, or pushes the failure to a cached stack
      * 
      * @param AMQPMessage $message
      */
@@ -283,13 +283,12 @@ class AmqpChannel
         }
       } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
         $this->acknowledgeFailures[] = $message;
-        $this->retry--;
         $this->reconnect();
       }
     }
 
     /**
-     * Rejects the message
+     * Rejects the message, or pushes the failure to a cached stack
      * 
      * @param AMQPMessage $message
      */
@@ -298,12 +297,16 @@ class AmqpChannel
           $this->channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
       } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
           $this->rejectFailures[] = Array( $message, $requeue );
-          $this->retry--;
           $this->reconnect();
       }
     }
 
+    /**
+     * Closes the connection and reestablishes a valid channel
+     * Also re-initiates any consumer callbacks
+     */
     private function reconnect() {
+        $this->retry--;
         $this->disconnect();
         $this->connect();
         $this->declareExchange();
@@ -330,13 +333,13 @@ class AmqpChannel
      * 
      * @param Closure $callback
      */
-    public function publish(Closure $callback) {
-        while($this->retry-- >= 0) {
+    public function publish($route, $message) {
+        while($this->retry >= 0) {
           // If a connection-level issue occurs, atempt to recconnect $this->retry times
           try {
-            // Fire the callback and reset the retry count if it worked
-            $result = $callback($this->channel, $this->properties['exchange']);
-            $this->retry = $properties['reconnect_attempts'] ?? 3;
+            // Fire the basic command and reset the retry count if it worked
+            $result = $this->channel->basic_publish($message, $this->properties['exchange'], $route);
+            $this->retry = $this->properties['reconnect_attempts'] ?? 3;
 
             // Return the result to the caller
             return $result;
