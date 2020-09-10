@@ -27,12 +27,12 @@ class AmqpServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->app->bind('Amqp', 'Comlaude\Amqp\Amqp');
-        if (!class_exists('Amqp')) {
+        if (! class_exists('Amqp')) {
             class_alias('Comlaude\Amqp\Facades\Amqp', 'Amqp');
         }
 
         $this->publishes([
-            __DIR__.'/../config/amqp.php' => config_path('amqp.php'),
+            __DIR__ . '/../config/amqp.php' => config_path('amqp.php'),
         ]);
     }
 

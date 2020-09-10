@@ -30,7 +30,7 @@ class LumenServiceProvider extends ServiceProvider
     {
         $this->app->bind('Amqp', 'Comlaude\Amqp\Amqp');
 
-        if (!class_exists('Amqp')) {
+        if (! class_exists('Amqp')) {
             class_alias('Comlaude\Amqp\Facades\Amqp', 'Amqp');
         }
     }

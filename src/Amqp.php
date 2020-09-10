@@ -3,12 +3,15 @@
 namespace Comlaude\Amqp;
 
 use Closure;
+use Comlaude\Amqp\AmqpChannel;
+use PhpAmqpLib\Message\AMQPMessage;
 
 /**
  * @author David krizanic <david.krizanic@comlaude.com>
  */
 class Amqp
 {
+
     /**
      * Publishes a message to the queue
      * 
@@ -18,30 +21,39 @@ class Amqp
      */
     public function publish($routing, $message, array $properties = [])
     {
-        // TODO
+        $message = new AMQPMessage($message);
+        AmqpChannel::create($properties)->run(function($channel, $exchange) use($message, $routing) {
+            $channel->basic_publish($message, $exchange, $routing);
+        });
     }
 
     /**
      * Adds a message received handler to a queue
      * 
-     * @param string $queue
      * @param Closure $callback
      * @param array $properties
      * @throws Exception\Configuration
      */
-    public function consume($queue, Closure $callback, $properties = [])
+    public function consume(Closure $callback, $properties = [])
     {
-        // TODO
+        AmqpChannel::create($properties)->consume($callback);
     }
 
     /**
      * Acknowledges a message
      *
      * @param AMQPMessage $message
+     * @param array $properties
      */
-    public function acknowledge(AMQPMessage $message)
+    public function acknowledge(AMQPMessage $message, $properties = [])
     {
-        // TODO
+        AmqpChannel::create($properties)->run(function($channel) use($message) {
+            $channel->basic_ack($message->delivery_info['delivery_tag']);
+    
+            if ($message->body === 'quit') {
+                $channel->basic_cancel($message->delivery_info['consumer_tag']);
+            }
+        });
     }
 
     /**
@@ -49,21 +61,12 @@ class Amqp
      *
      * @param AMQPMessage $message
      * @param bool $requeue
+     * @param array $properties
      */
-    public function reject(AMQPMessage $message, $requeue = false)
+    public function reject(AMQPMessage $message, $requeue = false, $properties = [])
     {
-        // TODO
-    }
-
-    /**
-     * Declares an exchange and queue
-     *
-     * @param string $exchange
-     * @param string $queue
-     * @return AMQPChannel $requeue
-     */
-    public function declare($exchange, $queue)
-    {
-        // TODO
+        AmqpChannel::create($properties)->run(function($channel) use ($message, $requeue) {
+            $channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
+        });
     }
 }
