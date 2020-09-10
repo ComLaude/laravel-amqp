@@ -103,13 +103,13 @@ class AmqpChannel
     private function declareExchange() {      
       $this->channel->exchange_declare(
           $this->properties['exchange'],
-          $this->properties['exchange_type'],
-          $this->properties['exchange_passive'],
-          $this->properties['exchange_durable'],
-          $this->properties['exchange_auto_delete'],
-          $this->properties['exchange_internal'],
-          $this->properties['exchange_nowait'],
-          $this->properties['exchange_properties']
+          $this->properties['exchange_type'] ?? 'topic',
+          $this->properties['exchange_passive'] ?? false,
+          $this->properties['exchange_durable'] ?? true,
+          $this->properties['exchange_auto_delete'] ?? false,
+          $this->properties['exchange_internal'] ?? false,
+          $this->properties['exchange_nowait'] ?? false,
+          $this->properties['exchange_properties'] ?? []
       );
     }
 
@@ -119,20 +119,22 @@ class AmqpChannel
     private function declareQueue() {      
       $this->queue = $this->channel->queue_declare(
           $this->properties['queue'],
-          $this->properties['queue_passive'],
-          $this->properties['queue_durable'],
-          $this->properties['queue_exclusive'],
-          $this->properties['queue_auto_delete'],
-          $this->properties['queue_nowait'],
-          $this->properties['queue_properties']
+          $this->properties['queue_passive'] ?? false,
+          $this->properties['queue_durable'] ?? true,
+          $this->properties['queue_exclusive'] ?? false,
+          $this->properties['queue_auto_delete'] ?? false,
+          $this->properties['queue_nowait'] ?? false,
+          $this->properties['queue_properties'] ?? ['x-ha-policy' => ['S', 'all']]
       );
       
-      foreach ((array) $this->properties['bindings'] as $routingKey) {
-        $this->channel->queue_bind(
-            $this->properties['queue'] ?: $this->queueInfo[0],
-            $this->properties['exchange'],
-            $routingKey
-        );
+      foreach ((array) $this->properties['bindings'] as $binding) {
+        if($binding['queue'] === $this->properties['queue']) {
+          $this->channel->queue_bind(
+              $this->properties['queue'] ?: $this->queueInfo[0],
+              $this->properties['exchange'],
+              $binding['routing']
+          );
+        }
     }
     }
     
@@ -158,21 +160,21 @@ class AmqpChannel
           return true;
         }
 
-        if ($this->properties['qos']) {
+        if (isset($this->properties['qos']) && $this->properties['qos'] === true) {
             $this->channel->basic_qos(
-                $this->properties['qos_prefetch_size'],
-                $this->properties['qos_prefetch_count'],
-                $this->properties['qos_a_global']
+                $this->properties['qos_prefetch_size'] ?? 0,
+                $this->properties['qos_prefetch_count'] ?? 1 ,
+                $this->properties['qos_a_global'] ?? false
             );
         }
 
         $this->channel->basic_consume(
             $this->properties['queue'],
-            $this->properties['consumer_tag'],
-            $this->properties['consumer_no_local'],
-            $this->properties['consumer_no_ack'],
-            $this->properties['consumer_exclusive'],
-            $this->properties['consumer_nowait'],
+            $this->properties['consumer_tag'] ?? 'd2-amqp',
+            $this->properties['consumer_no_local'] ?? false,
+            $this->properties['consumer_no_ack']?? false,
+            $this->properties['consumer_exclusive']?? false,
+            $this->properties['consumer_nowait']?? false,
             $closure,
         );
 
@@ -190,7 +192,7 @@ class AmqpChannel
      * @param Closure $callback
      */
     public function run(Closure $callback) {
-        $retryCount = $this->retry;
+        $retryCount = self::$retry;
         while($retryCount-- > 0) {
           try {
             return $callback($this->channel, $this->properties['exchange']);
@@ -204,6 +206,6 @@ class AmqpChannel
             self::$channels[$this->properties['exchange'] . '.' . $this->properties['queue']] = self::create($this->properties);
           }
         }
-        throw \Exception("Interaction with AMQP channel failed after $this->retry reconnection attempts.", 500);
+        throw \Exception('Interaction with AMQP channel failed after ' . self::$retry . ' reconnection attempts.', 500);
     }
 }
