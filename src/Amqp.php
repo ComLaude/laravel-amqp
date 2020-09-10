@@ -22,7 +22,7 @@ class Amqp
     public function publish($routing, $message, array $properties = [])
     {
         $message = new AMQPMessage($message);
-        AmqpChannel::create($properties)->run(function($channel, $exchange) use($message, $routing) {
+        AmqpChannel::create($properties)->publish(function($channel, $exchange) use($message, $routing) {
             $channel->basic_publish($message, $exchange, $routing);
         });
     }
@@ -47,13 +47,7 @@ class Amqp
      */
     public function acknowledge(AMQPMessage $message, $properties = [])
     {
-        AmqpChannel::create($properties)->run(function($channel) use($message) {
-            $channel->basic_ack($message->delivery_info['delivery_tag']);
-    
-            if ($message->body === 'quit') {
-                $channel->basic_cancel($message->delivery_info['consumer_tag']);
-            }
-        });
+        AmqpChannel::create($properties)->acknowledge($message);
     }
 
     /**
@@ -65,8 +59,6 @@ class Amqp
      */
     public function reject(AMQPMessage $message, $requeue = false, $properties = [])
     {
-        AmqpChannel::create($properties)->run(function($channel) use ($message, $requeue) {
-            $channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
-        });
+        AmqpChannel::create($properties)->reject($message);
     }
 }
