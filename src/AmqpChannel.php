@@ -2,9 +2,14 @@
 namespace Comlaude\Amqp;
 
 use Closure;
-use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Connection\AMQPSSLConnection;
+use PhpAmqpLib\Exception\AMQPTimeoutException;
+use PhpAmqpLib\Exception\AMQPChannelClosedException;
+use PhpAmqpLib\Exception\AMQPConnectionClosedException;
+use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
+use PhpAmqpLib\Exception\AMQPConnectionException;
+use PhpAmqpLib\Message\AMQPMessage;
 
 /**
  * @author David krizanic <david.krizanic@comlaude.com>
@@ -21,12 +26,15 @@ class AmqpChannel
     private $properties;
     private $connection;
     private $channel;
+    private $callbacks;
     private $queue;
+    private $acknowledgeFailures;
+    private $rejectFailures;
 
     /**
      * Number of times the connection will be retried
      */
-    private static $retry = 1;
+    private $retry;
 
     /**
      * Creates a channel instance
@@ -36,6 +44,10 @@ class AmqpChannel
     private function __construct(array $properties = []) {
         // TODO
         $this->properties = $properties;
+        $this->retry = $properties['reconnect_attempts'] ?? 3;
+        $this->callbacks = [];
+        $this->acknowledgeFailures = [];
+        $this->rejectFailures = [];
         $this->connect();
         $this->declareExchange();
         $this->declareQueue();
@@ -61,7 +73,7 @@ class AmqpChannel
     /**
      * Establishes a connection to a broker and creates a channel
      */
-    private function connect(){
+    private function connect() {
       
       if (!empty($this->properties['ssl_options'])) {
           $this->connection = new AMQPSSLConnection(
@@ -95,6 +107,24 @@ class AmqpChannel
       }
       $this->connection->set_close_on_destruct(true);
       $this->channel = $this->connection->channel();
+    }
+
+    private function disconnect() {
+      try {
+        if(!empty($this->channel)) {
+          $this->channel->close();
+        }
+        if(!empty($this->connection)) {
+          $this->connection->close();
+        }
+        if(!empty($this->queue)) {
+          $this->queue = null;
+        }
+      } catch(AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+        $this->channel = null;
+        $this->connection = null;
+        $this->queue = null;
+      }
     }
 
     /**
@@ -150,11 +180,11 @@ class AmqpChannel
     }
 
     /**
-     * @param Closure $closure
+     * @param Closure $callback
      * @return bool
      * @throws \Exception
      */
-    public function consume(Closure $closure)
+    public function consume(Closure $callback)
     {
         if (!$this->properties['persistent'] && is_array($this->queue) && $this->queue[1] == 0) {
           return true;
@@ -168,17 +198,28 @@ class AmqpChannel
             );
         }
 
+        $object = $this;
+        $channelCallback = function($message) use ($object, $callback) {
+          if($message->get("redelivered") === true && $object->redeliveryCheck($message)) {
+            $object->redeliverySkip($message);
+          } else {
+            $callback($message);
+          }
+        };
+
         $this->channel->basic_consume(
             $this->properties['queue'],
-            $this->properties['consumer_tag'] ?? 'd2-amqp',
+            $this->properties['consumer_tag'] ?? 'd2-amqp-' . config('app.name'),
             $this->properties['consumer_no_local'] ?? false,
-            $this->properties['consumer_no_ack']?? false,
-            $this->properties['consumer_exclusive']?? false,
-            $this->properties['consumer_nowait']?? false,
-            $closure,
+            $this->properties['consumer_no_ack'] ?? false,
+            $this->properties['consumer_exclusive'] ?? false,
+            $this->properties['consumer_nowait'] ?? false,
+            $channelCallback,
         );
-
-        // consume
+        
+        // Add this callback to the stack if reconnection will occur
+        $this->callbacks[] = $channelCallback;
+        
         while (count($this->channel->callbacks)) {
             $this->channel->wait(null, false, $this->properties['timeout'] ?? 0 );
         }
@@ -187,25 +228,121 @@ class AmqpChannel
     }
 
     /**
+     * Acknowledges the message
+     * 
+     * @param AMQPMessage $message
+     */
+    public function redeliveryCheck(AMQPMessage $message) {
+      if(!empty($this->acknowledgeFailures) || !empty($this->rejectFailures)) {
+          foreach($this->acknowledgeFailures as $item) {
+            if($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
+                return true;
+            }
+          }
+          foreach($this->rejectFailures as $item) {
+            if($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
+                return true;
+            }
+          }
+      }
+      return false;
+    }
+
+    /**
+     * Acknowledges the message
+     * 
+     * @param AMQPMessage $message
+     */
+    public function redeliverySkip(AMQPMessage $message) {
+      foreach($this->acknowledgeFailures as $index => $item) {
+        if($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
+            unset($this->acknowledgeFailures[$index]);
+            return $this->acknowledge($message);
+        }
+      }
+      foreach($this->rejectFailures as $index => $item) {
+        if($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
+            unset($this->rejectFailures[$index]);
+            return $this->reject($message, $item[1]);
+        }
+      }
+      return true;
+    }
+
+    /**
+     * Acknowledges the message
+     * 
+     * @param AMQPMessage $message
+     */
+    public function acknowledge(AMQPMessage $message) {
+      try {
+        $this->channel->basic_ack($message->delivery_info['delivery_tag']);
+
+        if ($message->body === 'quit') {
+            $this->channel->basic_cancel($message->delivery_info['consumer_tag']);
+        }
+      } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+        $this->acknowledgeFailures[] = $message;
+        $this->retry--;
+        $this->reconnect();
+      }
+    }
+
+    /**
+     * Rejects the message
+     * 
+     * @param AMQPMessage $message
+     */
+    public function reject(AMQPMessage $message, $requeue = false) {
+      try {
+          $this->channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
+      } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+          $this->rejectFailures[] = Array( $message, $requeue );
+          $this->retry--;
+          $this->reconnect();
+      }
+    }
+
+    private function reconnect() {
+        $this->disconnect();
+        $this->connect();
+        $this->declareExchange();
+        $this->declareQueue();
+
+        // Re-attach the original callbacks if any were lost   
+        if(!empty($this->callbacks)) {
+          foreach($this->callbacks as $consumerCallback){  
+            $this->channel->basic_consume(
+              $this->properties['queue'],
+              $this->properties['consumer_tag'] ?? 'd2-amqp',
+              $this->properties['consumer_no_local'] ?? false,
+              $this->properties['consumer_no_ack'] ?? false,
+              $this->properties['consumer_exclusive'] ?? false,
+              $this->properties['consumer_nowait'] ?? false,
+              $consumerCallback,
+            );
+          }
+        }
+    }
+
+    /**
      * Runs a closure on the channel and retries on failure
      * 
      * @param Closure $callback
      */
-    public function run(Closure $callback) {
-        $retryCount = self::$retry;
-        while($retryCount-- > 0) {
+    public function publish(Closure $callback) {
+        while($this->retry-- >= 0) {
+          // If a connection-level issue occurs, atempt to recconnect $this->retry times
           try {
-            return $callback($this->channel, $this->properties['exchange']);
-          } catch(AMQPTimeoutException $e) {
-            self::$channels[$this->properties['exchange'] . '.' . $this->properties['queue']] = self::create($this->properties);
-          } catch(AMQPConnectionException $e) {
-            self::$channels[$this->properties['exchange'] . '.' . $this->properties['queue']] = self::create($this->properties);
-          } catch(AMQPHeartbeatMissedException $e) {
-            self::$channels[$this->properties['exchange'] . '.' . $this->properties['queue']] = self::create($this->properties);
-          } catch(AMQPChannelException $e) {
-            self::$channels[$this->properties['exchange'] . '.' . $this->properties['queue']] = self::create($this->properties);
+            // Fire the callback and reset the retry count if it worked
+            $result = $callback($this->channel, $this->properties['exchange']);
+            $this->retry = $properties['reconnect_attempts'] ?? 3;
+
+            // Return the result to the caller
+            return $result;
+          } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+            $this->reconnect();
           }
         }
-        throw \Exception('Interaction with AMQP channel failed after ' . self::$retry . ' reconnection attempts.', 500);
     }
 }
