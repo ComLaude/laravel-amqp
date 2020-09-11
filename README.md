@@ -166,3 +166,11 @@ Amqp::consume(function ($message) {
     'exchange' => 'amq.fanout',
 ]);
 ```
+
+## Credits
+
+* Some concepts were used from https://raw.githubusercontent.com/bschmitt/laravel-amqp
+
+## License
+
+This package is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT)
