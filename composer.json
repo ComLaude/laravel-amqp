@@ -1,7 +1,6 @@
 {
   "name": "comlaude/d2-amqp",
   "description": "AMQP wrapper for Laravel and Lumen to publish and consume messages",
-  "version": "1.0.1",
   "keywords": [
     "laravel",
     "lumen",
