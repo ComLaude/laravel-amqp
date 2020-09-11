@@ -69,7 +69,7 @@ Register the Lumen Service Provider in **bootstrap/app.php**:
 //...
 
 $app->configure('amqp');
-$app->register(Comlaude\Amqp\LumenServiceProvider::class);
+$app->register(ComLaude\Amqp\LumenServiceProvider::class);
 
 //...
 ```
@@ -79,7 +79,7 @@ Add Facade Support for Lumen 5.2+
 ```php
 //...
 $app->withFacades(true, [
-    'Comlaude\Amqp\Facades\Amqp' => 'Amqp',
+    'ComLaude\Amqp\Facades\Amqp' => 'Amqp',
 ]);
 //...
 ```
@@ -90,11 +90,11 @@ $app->withFacades(true, [
 Open **config/app.php** and add the service provider and alias:
 
 ```php
-'Comlaude\Amqp\AmqpServiceProvider',
+'ComLaude\Amqp\AmqpServiceProvider',
 ```
 
 ```php
-'Amqp' => 'Comlaude\Amqp\Facades\Amqp',
+'Amqp' => 'ComLaude\Amqp\Facades\Amqp',
 ```
 
 

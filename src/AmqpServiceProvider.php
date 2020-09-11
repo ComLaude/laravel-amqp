@@ -1,6 +1,6 @@
 <?php
 
-namespace Comlaude\Amqp;
+namespace ComLaude\Amqp;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -26,9 +26,9 @@ class AmqpServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->app->bind('Amqp', 'Comlaude\Amqp\Amqp');
+        $this->app->bind('Amqp', 'ComLaude\Amqp\Amqp');
         if (! class_exists('Amqp')) {
-            class_alias('Comlaude\Amqp\Facades\Amqp', 'Amqp');
+            class_alias('ComLaude\Amqp\Facades\Amqp', 'Amqp');
         }
 
         $this->publishes([

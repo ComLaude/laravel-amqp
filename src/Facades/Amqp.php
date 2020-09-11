@@ -1,12 +1,12 @@
 <?php
 
-namespace Comlaude\Amqp\Facades;
+namespace ComLaude\Amqp\Facades;
 
 use Illuminate\Support\Facades\Facade;
 
 /**
  * @author David krizanic <david.krizanic@comlaude.com>
- * @see Comlaude\Amqp\Amqp
+ * @see ComLaude\Amqp\Amqp
  */
 class Amqp extends Facade
 {

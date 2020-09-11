@@ -1,5 +1,5 @@
 <?php
-namespace Comlaude\Amqp;
+namespace ComLaude\Amqp;
 
 use Closure;
 use PhpAmqpLib\Connection\AMQPStreamConnection;

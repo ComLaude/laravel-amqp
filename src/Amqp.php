@@ -1,9 +1,9 @@
 <?php
 
-namespace Comlaude\Amqp;
+namespace ComLaude\Amqp;
 
 use Closure;
-use Comlaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
