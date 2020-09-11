@@ -1,6 +1,10 @@
 # ComLaude/laravel-amqp
 Simple PhpAmqpLib wrapper for interaction with RabbitMQ 
 
+[![Build Status](https://travis-ci.com/ComLaude/laravel-amqp.svg?branch=master)](https://travis-ci.com/ComLaude/laravel-amqp)
+[![Latest Stable Version](https://poser.pugx.org/comlaude/laravel-amqp/v)](//packagist.org/packages/comlaude/laravel-amqp)
+[![License](https://poser.pugx.org/comlaude/laravel-amqp/license)](//packagist.org/packages/comlaude/laravel-amqp)
+
 ## Installation
 
 ### Composer
