@@ -3,27 +3,21 @@ Simple PhpAmqpLib wrapper for interaction with RabbitMQ
 
 ## Installation
 
-Add to composer.json.
+### Composer
+
+Add the following to your require part within the composer.json: 
 
 ```js
-"repositories": [
-    {
-        "type": "package",
-        "package": {
-            "name": "comlaude/d2-amqp",
-            "version": "1.0.0",
-            "type": "package",
-            "source": {
-                "url": "git@github.com:ComLaude/d2-amqp.git",
-                "type": "git",
-                "reference": "master"
-            },
-            "autoload": {
-                "classmap": ["src/"]
-            }
-        }
-    }
-],
+"comlaude/d2-amqp": "1.*"
+```
+```batch
+$ php composer update
+```
+
+or
+
+```
+$ php composer require comlaude/d2-amqp
 ```
 
 ## Integration
@@ -169,7 +163,7 @@ Amqp::consume(function ($message) {
 
 ## Credits
 
-* Some concepts were used from https://raw.githubusercontent.com/bschmitt/laravel-amqp
+* Some concepts were used from https://github.com/bschmitt/laravel-amqp
 
 ## License
 
