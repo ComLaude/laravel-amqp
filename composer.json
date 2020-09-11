@@ -1,5 +1,5 @@
 {
-  "name": "comlaude/d2-amqp",
+  "name": "comlaude/laravel-amqp",
   "description": "AMQP wrapper for Laravel and Lumen to publish and consume messages",
   "keywords": [
     "laravel",
@@ -11,8 +11,8 @@
   ],
   "license": "MIT",
   "support": {
-      "issues": "https://github.com/ComLaude/d2-amqp/issues",
-      "source": "https://github.com/ComLaude/d2-amqp"
+      "issues": "https://github.com/ComLaude/laravel-amqp/issues",
+      "source": "https://github.com/ComLaude/laravel-amqp"
   },
   "authors": [
     {

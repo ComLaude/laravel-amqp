@@ -1,4 +1,4 @@
-# ComLaude/d2-amqp
+# ComLaude/laravel-amqp
 Simple PhpAmqpLib wrapper for interaction with RabbitMQ 
 
 ## Installation
@@ -8,7 +8,7 @@ Simple PhpAmqpLib wrapper for interaction with RabbitMQ
 Add the following to your require part within the composer.json: 
 
 ```js
-"comlaude/d2-amqp": "1.*"
+"comlaude/laravel-amqp": "1.*"
 ```
 ```batch
 $ php composer update
@@ -17,7 +17,7 @@ $ php composer update
 or
 
 ```
-$ php composer require comlaude/d2-amqp
+$ php composer require comlaude/laravel-amqp
 ```
 
 ## Integration
@@ -25,7 +25,7 @@ $ php composer require comlaude/d2-amqp
 ### Lumen
 
 Create a **config** folder in the root directory of your Lumen application and copy the content
-from **vendor/comlaude/d2-amqp/config/amqp.php** to **config/amqp.php**.
+from **vendor/comlaude/laravel-amqp/config/amqp.php** to **config/amqp.php**.
 
 Adjust the properties to your needs.
 
