@@ -13,7 +13,6 @@ php:
   - 7.4
 
 services:
-  - mysql
   - rabbitmq
 
 addons:

@@ -14,7 +14,7 @@ class Amqp
 
     /**
      * Publishes a message to the queue
-     * 
+     *
      * @param string $routing
      * @param mixed $message
      * @param array $properties
@@ -27,7 +27,7 @@ class Amqp
 
     /**
      * Adds a message received handler to a queue
-     * 
+     *
      * @param Closure $callback
      * @param array $properties
      * @throws Exception\Configuration
