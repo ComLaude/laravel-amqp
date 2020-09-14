@@ -89,6 +89,7 @@ class AMQPChannelTest extends BaseTest
         // Because we did not explicitly acknowledge the consumed message here this is a good test of the
         // automatic acknowledgement of the duplicated message we expect to receive
         $this->master->consume(function($consumedMessage){});
+        
         // The second consume should contain the expected second message
         $this->master->consume(function($consumedMessage) use ($message2, $object, $master) {
             $object->assertEquals($consumedMessage->body, $message2->body);
