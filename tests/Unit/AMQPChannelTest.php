@@ -2,9 +2,6 @@
 
 namespace ComLaude\Amqp\Tests\Unit;
 
-use \Mockery;
-use ComLaude\Amqp\AmqpChannel;
-use Illuminate\Config\Repository;
 use ComLaude\Amqp\Tests\BaseTest;
 
 /**

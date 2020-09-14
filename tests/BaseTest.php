@@ -3,7 +3,6 @@
 namespace ComLaude\Amqp\Tests;
 
 use \Mockery;
-use Illuminate\Config\Repository;
 
 class BaseTest extends \PHPUnit_Framework_TestCase
 {
