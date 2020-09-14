@@ -6,6 +6,7 @@ use ComLaude\Amqp\AmqpChannel;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Channel\AMQPChannel as AMQPChannelBase;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Message\AMQPMessage;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
@@ -34,7 +35,7 @@ class AMQPChannelTest extends BaseTest
 
     public function testPublishToChannel()
     {
-        $message = 'Test message';
+        $message = new AMQPMessage('Test message');
         
         $result = $this->master->publish('empty.target', $message);
 
@@ -43,14 +44,14 @@ class AMQPChannelTest extends BaseTest
 
     public function testPublishToChannelAndConsume()
     {
-        $message = 'Test message';
+        $message = new AMQPMessage('Test message');
         
         $this->master->publish('empty.target', $message);
 
         $object = $this;
 
         $this->master->consume(function() use ($consumedMessage, $object) {
-            $object->assertEquals($consumedMessage, $message);
+            $object->assertEquals($consumedMessage->body, $message->body);
         });
 
         $this->master->acknowledge($consumedMessage);
