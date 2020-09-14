@@ -3,6 +3,7 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\Tests\BaseTest;
+use ComLaude\Amqp\AmqpChannel;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
@@ -15,13 +16,13 @@ class AMQPChannelTest extends BaseTest
 
     public function testCreateAmqpChannel()
     {
-        $this->assertInstanceOf($this->master, \ComLaude\Amqp\AmqpChannel);
+        $this->assertInstanceOf($this->master, AmqpChannel::class);
     }
 
     protected function setUp()
     {
         parent::setUp();
 
-        $this->master = \ComLaude\Amqp\AmqpChannel::create( (array) $this->properties, Array( 'queue' => 'testing' ) );
+        $this->master = AmqpChannel::create( (array) $this->properties, Array( 'queue' => 'testing' ) );
     }
 }
