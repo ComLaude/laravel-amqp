@@ -319,7 +319,7 @@ class AmqpChannel
             $this->properties['queue_properties'] ?? ['x-ha-policy' => ['S', 'all']]
         );
       
-        if (! empty((array) $this->properties['bindings'])) {
+        if (! empty($this->properties['bindings'])) {
             foreach ((array) $this->properties['bindings'] as $binding) {
                 if ($binding['queue'] === $this->properties['queue']) {
                     $this->channel->queue_bind(
