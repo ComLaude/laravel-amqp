@@ -104,13 +104,34 @@ class AmqpChannel
     }
 
     /**
+     * Runs a closure on the channel and retries on failure
+     * 
+     * @param Closure $callback
+     */
+    public function publish($route, $message) {
+        while($this->retry >= 0) {
+          // If a connection-level issue occurs, atempt to recconnect $this->retry times
+          try {
+            // Fire the basic command and reset the retry count if it worked
+            $result = $this->channel->basic_publish($message, $this->properties['exchange'], $route);
+            $this->retry = $this->properties['reconnect_attempts'] ?? 3;
+
+            // Return the result to the caller
+            return $result;
+          } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+            $this->reconnect();
+          }
+        }
+    }
+
+    /**
      * @param Closure $callback
      * @return bool
      * @throws \Exception
      */
     public function consume(Closure $callback)
     {
-        if (! $this->properties['persistent'] && is_array($this->queue) && $this->queue[1] == 0) {
+        if ((! isset($this->properties['persistent']) || $this->properties['persistent'] == false) && is_array($this->queue) && $this->queue[1] == 0) {
             return true;
         }
 
@@ -144,7 +165,7 @@ class AmqpChannel
         // Add this callback to the stack if reconnection will occur
         $this->callbacks[] = $channelCallback;
         
-        while (count($this->channel->callbacks)) {
+        while (count($this->channel->callbacks) && $this->properties['persistent'] ?? false) {
             $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
         }
 

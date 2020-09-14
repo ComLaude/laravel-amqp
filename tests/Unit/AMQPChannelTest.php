@@ -31,4 +31,28 @@ class AMQPChannelTest extends BaseTest
         $this->assertInstanceOf(AMQPChannelBase::class, $this->channel);
         $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
     }
+
+    public function testPublishToChannel()
+    {
+        $message = 'Test message';
+        
+        $result = $this->master->publish('empty.target', $message);
+
+        $this->assertNull($result);
+    }
+
+    public function testPublishToChannelAndConsume()
+    {
+        $message = 'Test message';
+        
+        $this->master->publish('empty.target', $message);
+
+        $object = $this;
+
+        $this->master->consume(function() use ($consumedMessage, $object) {
+            $object->assertEquals($consumedMessage, $message);
+        });
+
+        $this->master->acknowledge($consumedMessage);
+    }
 }
