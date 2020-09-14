@@ -67,10 +67,10 @@ class AmqpChannel
         }
         $final = array_merge($base, $properties);
         // Try to find a matching channel first
-        if (isset(self::$channels[$final['exchange'] . '.' . $final['queue']])) {
-            return self::$channels[$final['exchange'] . '.' . $final['queue']];
+        if (isset(self::$channels[$final['exchange'] . '.' . $final['queue'] . '.' . $final['consumer_tag']])) {
+            return self::$channels[$final['exchange'] . '.' . $final['queue'] . '.' . $final['consumer_tag']];
         }
-        return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
+        return self::$channels[$final['exchange'] . '.' . $final['queue'] . '.' . $final['consumer_tag']] = new AmqpChannel($final);
     }
     
     /**
@@ -154,20 +154,21 @@ class AmqpChannel
 
         $this->channel->basic_consume(
             $this->properties['queue'],
-            $this->properties['consumer_tag'] ?? 'd2-amqp-' . config('app.name'),
+            $this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name'),
             $this->properties['consumer_no_local'] ?? false,
             $this->properties['consumer_no_ack'] ?? false,
             $this->properties['consumer_exclusive'] ?? false,
             $this->properties['consumer_nowait'] ?? false,
             $channelCallback,
         );
+
         
         // Add this callback to the stack if reconnection will occur
         $this->callbacks[] = $channelCallback;
         
-        while (count($this->channel->callbacks) && $this->properties['persistent'] ?? false) {
+        do  {
             $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
-        }
+        } while (count($this->channel->callbacks) && $this->properties['persistent'] ?? false);
 
         return true;
     }
@@ -370,7 +371,7 @@ class AmqpChannel
             foreach ($this->callbacks as $consumerCallback) {
                 $this->channel->basic_consume(
                     $this->properties['queue'],
-                    $this->properties['consumer_tag'] ?? 'd2-amqp',
+                    $this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name'),
                     $this->properties['consumer_no_local'] ?? false,
                     $this->properties['consumer_no_ack'] ?? false,
                     $this->properties['consumer_exclusive'] ?? false,
