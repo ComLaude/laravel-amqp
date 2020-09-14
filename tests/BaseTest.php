@@ -3,19 +3,19 @@
 namespace ComLaude\Amqp\Tests;
 
 use Mockery;
-use PHPUnit_Framework_TestCase;
+use PHPUnit\Framework\TestCase;
 
-class BaseTest extends PHPUnit_Framework_TestCase
+class BaseTest extends TestCase
 {
     protected $properties;
 
-    protected function setUp()
+    function setUp(): void
     {
         $amqpConfig = include dirname(__FILE__) . '/../config/amqp.php';
         $this->properties = $amqpConfig['properties'][$amqpConfig['use']];
     }
 
-    protected function tearDown()
+    function tearDown(): void
     {
         Mockery::close();
     }

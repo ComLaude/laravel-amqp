@@ -16,19 +16,19 @@ class AMQPChannelTest extends BaseTest
     protected $channel;
     protected $connection;
 
-    public function testCreateAmqpChannel()
-    {
-        $this->assertInstanceOf(AmqpChannel::class, $this->master);
-        $this->assertInstanceOf(AMQPChannelBase::class, $this->channel);
-        $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
-    }
-
-    protected function setUp()
+    function setUp(): void
     {
         parent::setUp();
 
         $this->master = AmqpChannel::create( (array) $this->properties, Array( 'queue' => 'testing' ) );
         $this->channel = $this->master->getChannel();
         $this->connection = $this->master->getConnection();
+    }
+
+    public function testCreateAmqpChannel()
+    {
+        $this->assertInstanceOf(AmqpChannel::class, $this->master);
+        $this->assertInstanceOf(AMQPChannelBase::class, $this->channel);
+        $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
     }
 }
