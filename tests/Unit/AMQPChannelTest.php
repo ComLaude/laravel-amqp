@@ -5,7 +5,7 @@ namespace ComLaude\Amqp\Tests\Unit;
 use ComLaude\Amqp\AmqpChannel;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Channel\AMQPChannel as AMQPChannelBase;
-use PhpAmqpLib\Connection\AMQPConnection;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
@@ -20,7 +20,7 @@ class AMQPChannelTest extends BaseTest
     {
         $this->assertInstanceOf(AmqpChannel::class, $this->master);
         $this->assertInstanceOf(AMQPChannelBase::class, $this->channel);
-        $this->assertInstanceOf(AMQPConnection::class, $this->connection);
+        $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
     }
 
     protected function setUp()
