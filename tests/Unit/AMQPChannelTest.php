@@ -28,5 +28,7 @@ class AMQPChannelTest extends BaseTest
         parent::setUp();
 
         $this->master = AmqpChannel::create( (array) $this->properties, Array( 'queue' => 'testing' ) );
+        $this->channel = $this->master->getChannel();
+        $this->connection = $this->master->getConnection();
     }
 }
