@@ -25,6 +25,6 @@
     <env name="AMQP_VHOST" value="/" force="true"/>
   </php>
   <logging>
-      <log type="coverage-text" target="php://stdout" charset="UTF-8" yui="true" highlight="true" lowUpperBound="50" highLowerBound="80" />
+      <log type="coverage-text" target="php://stdout" lowUpperBound="50" highLowerBound="80" />
   </logging>
 </phpunit>
