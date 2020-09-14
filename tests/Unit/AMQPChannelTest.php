@@ -50,7 +50,7 @@ class AMQPChannelTest extends BaseTest
 
         $object = $this;
 
-        $this->master->consume(function() use ($consumedMessage, $object) {
+        $this->master->consume(function($consumedMessage) use ($message, $object) {
             $object->assertEquals($consumedMessage->body, $message->body);
         });
 
