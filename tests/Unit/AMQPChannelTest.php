@@ -49,11 +49,11 @@ class AMQPChannelTest extends BaseTest
         $this->master->publish('empty.target', $message);
 
         $object = $this;
+        $master = $this->master;
 
-        $this->master->consume(function($consumedMessage) use ($message, $object) {
+        $this->master->consume(function($consumedMessage) use ($message, $object, $master) {
             $object->assertEquals($consumedMessage->body, $message->body);
+            $master->acknowledge($consumedMessage);
         });
-
-        $this->master->acknowledge($consumedMessage);
     }
 }
