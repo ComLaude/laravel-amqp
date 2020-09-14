@@ -59,16 +59,36 @@ class AmqpChannel
      * @param array $properties
      * @return AmqpChannel
      */
-    public static function create(array $properties = [])
+    public static function create(array $properties = [], array $base = null)
     {
         // Merge properties with config
-        $config = config('amqp.properties.' . config('amqp.use'));
-        $final = array_merge($config, $properties);
+        if(empty($base)) {
+            $base = config('amqp.properties.' . config('amqp.use'));
+        }
+        $final = array_merge($base, $properties);
         // Try to find a matching channel first
         if (isset(self::$channels[$final['exchange'] . '.' . $final['queue']])) {
             return self::$channels[$final['exchange'] . '.' . $final['queue']];
         }
         return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
+    }
+    
+    /**
+     * Returns current connection
+     *
+     * @return AMQPConnection
+     */
+    public function getConnection() {
+        return $this->connection;
+    }
+    
+    /**
+     * Returns current channel
+     *
+     * @return AMQPChannel
+     */
+    public function getChannel() {
+        return $this->channel;
     }
     
     /**

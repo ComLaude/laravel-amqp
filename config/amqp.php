@@ -56,6 +56,18 @@ return [
             'qos_prefetch_size'     => 0,
             'qos_prefetch_count'    => 1,
             'qos_a_global'          => false,
+
+            /*
+            |--------------------------------------------------------------------------
+            | An example binding set up when declaring exchange and queues
+            |--------------------------------------------------------------------------
+            |'bindings' => [
+            |    [
+            |        'queue'    => 'example',
+            |        'routing'  => 'example.route.key',
+            |    ],
+            |],
+            */
         ],
 
     ],
