@@ -4,6 +4,9 @@
     <include>
       <directory suffix=".php">./app</directory>
     </include>
+    <report>
+      <text outputFile="php://stdout" showUncoveredFiles="false" showOnlySummary="true" />
+    </report>
   </coverage>
   <testsuites>
     <testsuite name="Unit">
@@ -25,11 +28,6 @@
     <env name="AMQP_VHOST" value="/" force="true"/>
   </php>
   <logging>
-    <text type="coverage-text" target="php://stdout" lowUpperBound="50" highLowerBound="80" />
+    <text outputFile="php://stdout" />
   </logging>
-  <coverage includeUncoveredFiles="true" processUncoveredFiles="true" pathCoverage="false" ignoreDeprecatedCodeUnits="true" disableCodeCoverageIgnore="true">
-    <report>
-      <text outputFile="php://stdout" showUncoveredFiles="false" showOnlySummary="true"/>
-    </report>
-  </coverage>
 </phpunit>
