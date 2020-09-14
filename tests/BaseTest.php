@@ -3,6 +3,7 @@
 namespace ComLaude\Amqp\Tests;
 
 use Mockery;
+use PHPUnit_Framework_TestCase;
 
 class BaseTest extends PHPUnit_Framework_TestCase
 {

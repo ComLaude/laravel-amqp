@@ -2,8 +2,8 @@
 
 namespace ComLaude\Amqp\Tests\Unit;
 
-use ComLaude\Amqp\Tests\BaseTest;
 use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\Tests\BaseTest;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
