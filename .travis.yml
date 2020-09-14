@@ -27,6 +27,7 @@ cache:
 before_script:
   - composer self-update
   - composer install --no-interaction
+  - pecl install pcov
 
 script:
   - vendor/bin/phpunit
