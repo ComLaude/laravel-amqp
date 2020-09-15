@@ -23,6 +23,13 @@ class AMQPChannelDelayedTest extends BaseTest
 
         if(empty($this->master)) {
             $this->master = AmqpChannel::create( array_merge( $this->properties, [
+
+                // Travis defaults here
+                'host'                  => 'localhost',
+                'port'                  =>  5672,
+                'username'              => 'guest',
+                'password'              => 'guest',
+
                 'queue' => 'delaytest',
                 'queue_auto_delete' => true,
                 'exchange' => 'test',
