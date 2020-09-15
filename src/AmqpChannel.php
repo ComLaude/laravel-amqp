@@ -62,7 +62,7 @@ class AmqpChannel
     public static function create(array $properties = [], array $base = null)
     {
         // Merge properties with config
-        if(empty($base)) {
+        if (empty($base)) {
             $base = config('amqp.properties.' . config('amqp.use'));
         }
         $final = array_merge($base, $properties);
@@ -78,7 +78,8 @@ class AmqpChannel
      *
      * @return AMQPConnection
      */
-    public function getConnection() {
+    public function getConnection()
+    {
         return $this->connection;
     }
     
@@ -87,7 +88,8 @@ class AmqpChannel
      *
      * @return AMQPChannel
      */
-    public function getChannel() {
+    public function getChannel()
+    {
         return $this->channel;
     }
     
@@ -105,22 +107,23 @@ class AmqpChannel
 
     /**
      * Runs a closure on the channel and retries on failure
-     * 
+     *
      * @param Closure $callback
      */
-    public function publish($route, $message) {
-        while($this->retry >= 0) {
-          // If a connection-level issue occurs, atempt to recconnect $this->retry times
-          try {
-            // Fire the basic command and reset the retry count if it worked
-            $result = $this->channel->basic_publish($message, $this->properties['exchange'], $route);
-            $this->retry = $this->properties['reconnect_attempts'] ?? 3;
+    public function publish($route, $message)
+    {
+        while ($this->retry >= 0) {
+            // If a connection-level issue occurs, atempt to recconnect $this->retry times
+            try {
+                // Fire the basic command and reset the retry count if it worked
+                $result = $this->channel->basic_publish($message, $this->properties['exchange'], $route);
+                $this->retry = $this->properties['reconnect_attempts'] ?? 3;
 
-            // Return the result to the caller
-            return $result;
-          } catch(AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-            $this->reconnect();
-          }
+                // Return the result to the caller
+                return $result;
+            } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+                $this->reconnect();
+            }
         }
     }
 
@@ -136,7 +139,7 @@ class AmqpChannel
         if ((! isset($this->properties['persistent']) || $this->properties['persistent'] == false) && is_array($this->queue) && $this->queue[1] == 0) {
             return true;
         }
-        if(empty($tag)){
+        if (empty($tag)) {
             $tag = uniqid();
         }
 
@@ -173,10 +176,10 @@ class AmqpChannel
             $this->callbacks[] = $channelCallback;
         }
         
-        do  {
+        do {
             try {
                 $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
-            } catch(AMQPTimeoutException $e) {
+            } catch (AMQPTimeoutException $e) {
                 return true;
             }
         } while (count($this->channel->callbacks) || $this->properties['persistent'] ?? false);
