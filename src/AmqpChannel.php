@@ -174,8 +174,12 @@ class AmqpChannel
         }
         
         do  {
-            $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
-        } while (count($this->channel->callbacks) && $this->properties['persistent'] ?? false);
+            try {
+                $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
+            } catch(AMQPTimeoutException $e) {
+                return true;
+            }
+        } while (count($this->channel->callbacks) || $this->properties['persistent'] ?? false);
 
         return true;
     }
@@ -348,7 +352,7 @@ class AmqpChannel
             foreach ((array) $this->properties['bindings'] as $binding) {
                 if ($binding['queue'] === $this->properties['queue']) {
                     $this->channel->queue_bind(
-                        $this->properties['queue'] ?: $this->queueInfo[0],
+                        $this->properties['queue'] ?: $this->queue[0],
                         $this->properties['exchange'],
                         $binding['routing']
                     );
