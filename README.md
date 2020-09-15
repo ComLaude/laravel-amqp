@@ -130,9 +130,9 @@ Amqp::publish('routing-key', 'message' , ['exchange' => 'amq.direct']);
 ```php
 Amqp::consume(function ($message) {
     		
-var_dump($message->body);
+    var_dump($message->body);
 
-Amqp::acknowledge($message);
+    Amqp::acknowledge($message);
         
 });
 ```
@@ -147,7 +147,7 @@ Amqp::consume(function ($message) {
    Amqp::acknowledge($message);
       
 }, [
-	'timeout' => 2,
+    'timeout' => 2,
     'vhost'   => 'vhost3',
     'queue'   => 'queue-name',
     'persistent' => true // required if you want to listen forever
