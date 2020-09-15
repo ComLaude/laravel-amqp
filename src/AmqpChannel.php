@@ -118,7 +118,7 @@ class AmqpChannel
 
             // Return the result to the caller
             return $result;
-          } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+          } catch(AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             $this->reconnect();
           }
         }
@@ -241,7 +241,7 @@ class AmqpChannel
             if ($message->body === 'quit') {
                 $this->channel->basic_cancel($message->delivery_info['consumer_tag']);
             }
-        } catch (AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+        } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             $this->acknowledgeFailures[] = $message;
             $this->reconnect();
         }
@@ -256,7 +256,7 @@ class AmqpChannel
     {
         try {
             $this->channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
-        } catch (AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+        } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             $this->rejectFailures[] = array( $message, $requeue );
             $this->reconnect();
         }
