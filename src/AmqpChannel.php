@@ -126,14 +126,18 @@ class AmqpChannel
 
     /**
      * @param Closure $callback
+     * @param string $tag
      * @return bool
      * @throws \Exception
      */
-    public function consume(Closure $callback)
+    public function consume(Closure $callback, $tag = null)
     {
         $this->queue = $this->declareQueue();
         if ((! isset($this->properties['persistent']) || $this->properties['persistent'] == false) && is_array($this->queue) && $this->queue[1] == 0) {
             return true;
+        }
+        if(empty($tag)){
+            $tag = uniqid();
         }
 
         if (isset($this->properties['qos']) && $this->properties['qos'] === true) {
@@ -155,7 +159,7 @@ class AmqpChannel
 
         $this->channel->basic_consume(
             $this->properties['queue'],
-            $this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name'),
+            ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . $tag,
             $this->properties['consumer_no_local'] ?? false,
             $this->properties['consumer_no_ack'] ?? false,
             $this->properties['consumer_exclusive'] ?? false,
@@ -370,7 +374,7 @@ class AmqpChannel
             foreach ($this->callbacks as $consumerCallback) {
                 $this->channel->basic_consume(
                     $this->properties['queue'],
-                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . "-retry$this->retry",
+                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . '-retry' . $this->retry,
                     $this->properties['consumer_no_local'] ?? false,
                     $this->properties['consumer_no_ack'] ?? false,
                     $this->properties['consumer_exclusive'] ?? false,
