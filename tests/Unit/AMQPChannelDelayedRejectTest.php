@@ -11,7 +11,7 @@ use PhpAmqpLib\Message\AMQPMessage;
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
  */
-class AMQPChannelTest extends BaseTest
+class AMQPChannelDelayedRejectTest extends BaseTest
 {
     protected $master;
     protected $channel;
@@ -30,15 +30,15 @@ class AMQPChannelTest extends BaseTest
                 'username'              => 'guest',
                 'password'              => 'guest',
 
-                'queue' => 'test',
+                'queue' => 'delaytestreject',
                 'queue_auto_delete' => true,
                 'exchange' => 'test',
                 'consumer_tag' => 'test',
                 'connect_options' => ['heartbeat' => 2],
                 'bindings' => [
                     [
-                        'queue'    => 'test',
-                        'routing'  => 'example.route.key',
+                        'queue'    => 'delaytestreject',
+                        'routing'  => 'example.route.delayreject',
                     ],
                 ],
                 'timeout' => 1,
@@ -56,42 +56,29 @@ class AMQPChannelTest extends BaseTest
         $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
     }
 
-    public function testPublishToChannel()
+    public function testPublishToChannelAndConsumeDelayed()
     {
-        $message = new AMQPMessage('Test empty.target message');
+        $message1 = new AMQPMessage('Test message consume delayed');
         
-        $result = $this->master->publish('empty.target', $message);
-
-        $this->assertNull($result);
-    }
-
-    public function testPublishToChannelAndConsumeThenAcknowledge()
-    {
-        $message = new AMQPMessage('Test message publish and consume');
+        $this->master->publish('example.route.delayreject', $message1);
         
-        $this->master->publish('example.route.key', $message);
-
         $object = $this;
         $master = $this->master;
 
-        $this->master->consume(function($consumedMessage) use ($message, $object, $master) {
-            $object->assertEquals($consumedMessage->body, $message->body);
-            $master->acknowledge($consumedMessage);
-        });
-    }
-
-    public function testPublishToChannelAndConsumeThenReject()
-    {
-        $message = new AMQPMessage('Test message publish and consume');
-        
-        $this->master->publish('example.route.key', $message);
-
-        $object = $this;
-        $master = $this->master;
-
-        $this->master->consume(function($consumedMessage) use ($message, $object, $master) {
-            $object->assertEquals($consumedMessage->body, $message->body);
+        // This will hit a heartbeat missed exception but recover from it
+        $this->master->consume(function($consumedMessage) use ($message1, $object, $master) {
+            $object->assertEquals($consumedMessage->body, $message1->body);
+            sleep(5);
             $master->reject($consumedMessage);
+        });
+
+        $message2 = new AMQPMessage('Test message 2');
+        $this->master->publish('example.route.delayreject', $message2);
+
+        // The second consume should contain the expected second message
+        $this->master->consume(function($consumedMessage) use ($message2, $object, $master) {
+            $object->assertEquals($message2->body, $consumedMessage->body);
+            $master->acknowledge($consumedMessage);
         });
     }
 }
