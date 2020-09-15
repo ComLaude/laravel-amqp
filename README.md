@@ -12,7 +12,7 @@ Simple PhpAmqpLib wrapper for interaction with RabbitMQ
 Add the following to your require part within the composer.json: 
 
 ```js
-"comlaude/laravel-amqp": "1.*"
+"comlaude/laravel-amqp": "^0.1.0"
 ```
 ```batch
 $ php composer update
@@ -107,19 +107,19 @@ Open **config/app.php** and add the service provider and alias:
 ### Push message with routing key
 
 ```php
-    Amqp::publish('routing-key', 'message');
+Amqp::publish('routing-key', 'message');
 ```
 
 ### Push message with routing key and custom queue
 
 ```php	
-    Amqp::publish('routing-key', 'message' , ['queue' => 'queue-name']);
+Amqp::publish('routing-key', 'message' , ['queue' => 'queue-name']);
 ```
 
 ### Push message with routing key and overwrite properties
 
 ```php	
-    Amqp::publish('routing-key', 'message' , ['exchange' => 'amq.direct']);
+Amqp::publish('routing-key', 'message' , ['exchange' => 'amq.direct']);
 ```
 
 
@@ -130,9 +130,9 @@ Open **config/app.php** and add the service provider and alias:
 ```php
 Amqp::consume(function ($message) {
     		
-   var_dump($message->body);
+var_dump($message->body);
 
-   Amqp::acknowledge($message);
+Amqp::acknowledge($message);
         
 });
 ```
