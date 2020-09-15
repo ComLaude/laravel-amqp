@@ -4,6 +4,9 @@
     <include>
       <directory suffix=".php">./app</directory>
     </include>
+    <report>
+      <text outputFile="php://stdout" showUncoveredFiles="false" showOnlySummary="true" />
+    </report>
   </coverage>
   <testsuites>
     <testsuite name="Unit">
@@ -16,4 +19,15 @@
       <directory suffix="Test.php">./tests/Integration</directory>
     </testsuite>
   </testsuites>
+  <php>
+    <env name="AMQP_ENV" value="production" force="true"/>
+    <env name="AMQP_HOST" value="localhost" force="true"/>
+    <env name="AMQP_PORT" value="5672" force="true"/>
+    <env name="AMQP_USER" value="guest" force="true"/>
+    <env name="AMQP_PASSWORD" value="guest" force="true"/>
+    <env name="AMQP_VHOST" value="/" force="true"/>
+  </php>
+  <logging>
+    <text outputFile="php://stdout" />
+  </logging>
 </phpunit>

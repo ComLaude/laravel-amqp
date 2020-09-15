@@ -24,10 +24,11 @@
     "php": ">=7.0",
     "php-amqplib/php-amqplib": ">=2.9",
     "illuminate/support": ">=v5.5.28",
-    "tightenco/tlint": "^5.0"
+    "tightenco/tlint": "^5.0",
+    "vlucas/phpdotenv": "^5.0"
   },
   "require-dev": {
-    "phpunit/phpunit": "~4.0",
+    "phpunit/phpunit": "^9.2",
     "mockery/mockery": "~0.9"
   },
   "autoload": {
@@ -37,7 +38,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "ComLaude\\Amqp\\Test\\": "test/"
+      "ComLaude\\Amqp\\Tests\\": "tests/"
     }
   },
   "extra": {

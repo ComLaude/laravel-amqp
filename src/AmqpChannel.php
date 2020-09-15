@@ -59,16 +59,36 @@ class AmqpChannel
      * @param array $properties
      * @return AmqpChannel
      */
-    public static function create(array $properties = [])
+    public static function create(array $properties = [], array $base = null)
     {
         // Merge properties with config
-        $config = config('amqp.properties.' . config('amqp.use'));
-        $final = array_merge($config, $properties);
+        if(empty($base)) {
+            $base = config('amqp.properties.' . config('amqp.use'));
+        }
+        $final = array_merge($base, $properties);
         // Try to find a matching channel first
         if (isset(self::$channels[$final['exchange'] . '.' . $final['queue']])) {
             return self::$channels[$final['exchange'] . '.' . $final['queue']];
         }
         return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
+    }
+    
+    /**
+     * Returns current connection
+     *
+     * @return AMQPConnection
+     */
+    public function getConnection() {
+        return $this->connection;
+    }
+    
+    /**
+     * Returns current channel
+     *
+     * @return AMQPChannel
+     */
+    public function getChannel() {
+        return $this->channel;
     }
     
     /**
@@ -84,14 +104,40 @@ class AmqpChannel
     }
 
     /**
+     * Runs a closure on the channel and retries on failure
+     * 
      * @param Closure $callback
+     */
+    public function publish($route, $message) {
+        while($this->retry >= 0) {
+          // If a connection-level issue occurs, atempt to recconnect $this->retry times
+          try {
+            // Fire the basic command and reset the retry count if it worked
+            $result = $this->channel->basic_publish($message, $this->properties['exchange'], $route);
+            $this->retry = $this->properties['reconnect_attempts'] ?? 3;
+
+            // Return the result to the caller
+            return $result;
+          } catch(AMQPTimeoutException | AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+            $this->reconnect();
+          }
+        }
+    }
+
+    /**
+     * @param Closure $callback
+     * @param string $tag
      * @return bool
      * @throws \Exception
      */
-    public function consume(Closure $callback)
+    public function consume(Closure $callback, $tag = null)
     {
-        if (! $this->properties['persistent'] && is_array($this->queue) && $this->queue[1] == 0) {
+        $this->queue = $this->declareQueue();
+        if ((! isset($this->properties['persistent']) || $this->properties['persistent'] == false) && is_array($this->queue) && $this->queue[1] == 0) {
             return true;
+        }
+        if(empty($tag)){
+            $tag = uniqid();
         }
 
         if (isset($this->properties['qos']) && $this->properties['qos'] === true) {
@@ -113,20 +159,27 @@ class AmqpChannel
 
         $this->channel->basic_consume(
             $this->properties['queue'],
-            $this->properties['consumer_tag'] ?? 'd2-amqp-' . config('app.name'),
+            ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . $tag,
             $this->properties['consumer_no_local'] ?? false,
             $this->properties['consumer_no_ack'] ?? false,
             $this->properties['consumer_exclusive'] ?? false,
             $this->properties['consumer_nowait'] ?? false,
             $channelCallback,
         );
+
         
         // Add this callback to the stack if reconnection will occur
-        $this->callbacks[] = $channelCallback;
-        
-        while (count($this->channel->callbacks)) {
-            $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
+        if ($this->properties['persistent'] ?? false) {
+            $this->callbacks[] = $channelCallback;
         }
+        
+        do  {
+            try {
+                $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
+            } catch(AMQPTimeoutException $e) {
+                return true;
+            }
+        } while (count($this->channel->callbacks) || $this->properties['persistent'] ?? false);
 
         return true;
     }
@@ -257,13 +310,9 @@ class AmqpChannel
             if (! empty($this->connection)) {
                 $this->connection->close();
             }
-            if (! empty($this->queue)) {
-                $this->queue = null;
-            }
         } catch (AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             $this->channel = null;
             $this->connection = null;
-            $this->queue = null;
         }
     }
 
@@ -299,13 +348,15 @@ class AmqpChannel
             $this->properties['queue_properties'] ?? ['x-ha-policy' => ['S', 'all']]
         );
       
-        foreach ((array) $this->properties['bindings'] as $binding) {
-            if ($binding['queue'] === $this->properties['queue']) {
-                $this->channel->queue_bind(
-                    $this->properties['queue'] ?: $this->queueInfo[0],
-                    $this->properties['exchange'],
-                    $binding['routing']
-                );
+        if (! empty($this->properties['bindings'])) {
+            foreach ((array) $this->properties['bindings'] as $binding) {
+                if ($binding['queue'] === $this->properties['queue']) {
+                    $this->channel->queue_bind(
+                        $this->properties['queue'] ?: $this->queue[0],
+                        $this->properties['exchange'],
+                        $binding['routing']
+                    );
+                }
             }
         }
     }
@@ -327,7 +378,7 @@ class AmqpChannel
             foreach ($this->callbacks as $consumerCallback) {
                 $this->channel->basic_consume(
                     $this->properties['queue'],
-                    $this->properties['consumer_tag'] ?? 'd2-amqp',
+                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . '-retry' . $this->retry,
                     $this->properties['consumer_no_local'] ?? false,
                     $this->properties['consumer_no_ack'] ?? false,
                     $this->properties['consumer_exclusive'] ?? false,
