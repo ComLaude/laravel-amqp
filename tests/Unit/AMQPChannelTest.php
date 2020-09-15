@@ -49,7 +49,7 @@ class AMQPChannelTest extends BaseTest
 
     public function testPublishToChannel()
     {
-        $message = new AMQPMessage('Test message');
+        $message = new AMQPMessage('Test empty.target message');
         
         $result = $this->master->publish('empty.target', $message);
 
@@ -58,7 +58,7 @@ class AMQPChannelTest extends BaseTest
 
     public function testPublishToChannelAndConsume()
     {
-        $message = new AMQPMessage('Test message');
+        $message = new AMQPMessage('Test message publish and consume');
         
         $this->master->publish('example.route.key', $message);
 

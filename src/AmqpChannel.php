@@ -67,10 +67,10 @@ class AmqpChannel
         }
         $final = array_merge($base, $properties);
         // Try to find a matching channel first
-        if (isset(self::$channels[$final['exchange'] . '.' . $final['queue'] . '.' . $final['consumer_tag']])) {
-            return self::$channels[$final['exchange'] . '.' . $final['queue'] . '.' . $final['consumer_tag']];
+        if (isset(self::$channels[$final['exchange'] . '.' . $final['queue']])) {
+            return self::$channels[$final['exchange'] . '.' . $final['queue']];
         }
-        return self::$channels[$final['exchange'] . '.' . $final['queue'] . '.' . $final['consumer_tag']] = new AmqpChannel($final);
+        return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
     }
     
     /**
@@ -131,6 +131,7 @@ class AmqpChannel
      */
     public function consume(Closure $callback)
     {
+        $this->queue = $this->declareQueue();
         if ((! isset($this->properties['persistent']) || $this->properties['persistent'] == false) && is_array($this->queue) && $this->queue[1] == 0) {
             return true;
         }
@@ -164,7 +165,9 @@ class AmqpChannel
 
         
         // Add this callback to the stack if reconnection will occur
-        $this->callbacks[] = $channelCallback;
+        if ($this->properties['persistent'] ?? false) {
+            $this->callbacks[] = $channelCallback;
+        }
         
         do  {
             $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
@@ -299,13 +302,9 @@ class AmqpChannel
             if (! empty($this->connection)) {
                 $this->connection->close();
             }
-            if (! empty($this->queue)) {
-                $this->queue = null;
-            }
         } catch (AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             $this->channel = null;
             $this->connection = null;
-            $this->queue = null;
         }
     }
 
@@ -371,7 +370,7 @@ class AmqpChannel
             foreach ($this->callbacks as $consumerCallback) {
                 $this->channel->basic_consume(
                     $this->properties['queue'],
-                    $this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name'),
+                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . "-retry$this->retry",
                     $this->properties['consumer_no_local'] ?? false,
                     $this->properties['consumer_no_ack'] ?? false,
                     $this->properties['consumer_exclusive'] ?? false,
