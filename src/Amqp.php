@@ -13,6 +13,27 @@ class Amqp
 {
 
     /**
+     * Flag for globally disabling message publishing
+     */
+    private static $publishingDisabled = false;
+
+    /**
+     * Globally disables publishing messages
+     */
+    public function off()
+    {
+        self::$publishingDisabled = true;
+    }
+
+    /**
+     * Globally enables publishing messages
+     */
+    public function on()
+    {
+        self::$publishingDisabled = false;
+    }
+
+    /**
      * Publishes a message to the queue
      *
      * @param string $routing
@@ -21,6 +42,9 @@ class Amqp
      */
     public function publish($route, $message, array $properties = [])
     {
+        if (self::$publishingDisabled === true) {
+            return;
+        }
         $message = new AMQPMessage($message);
         AmqpChannel::create($properties)->publish($route, $message);
     }
