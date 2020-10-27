@@ -92,18 +92,6 @@ class AmqpChannel
     {
         return $this->channel;
     }
-    
-    /**
-     * Compares this channel's settings with provided properties
-     *
-     * @param string $queue
-     * @param string $exchange
-     * @return bool
-     */
-    public function match($queue, $exchange)
-    {
-        return $this->properties['queue'] == $queue && $this->properties['exchange'] == $exchange;
-    }
 
     /**
      * Runs a closure on the channel and retries on failure

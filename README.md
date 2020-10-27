@@ -12,7 +12,7 @@ Simple PhpAmqpLib wrapper for interaction with RabbitMQ
 Add the following to your require part within the composer.json: 
 
 ```js
-"comlaude/laravel-amqp": "^0.1.0"
+"comlaude/laravel-amqp": "^1.0.0"
 ```
 ```batch
 $ php composer update
@@ -53,7 +53,13 @@ return [
             'connect_options'     => [], // See https://github.com/php-amqplib/php-amqplib/blob/master/PhpAmqpLib/Connection/AMQPSSLConnection.php
             'queue_properties'    => ['x-ha-policy' => ['S', 'all']],
             'exchange_properties' => [],
-            'timeout'             => 0
+            'timeout'             => 0,
+            'bindings' => [ // The default declared queues and bindings for those queues
+                [
+                    'queue'    => 'example_queue',
+                    'routing'  => 'example_routing_key',
+                ],
+            ]
         ],
 
     ],
@@ -110,12 +116,6 @@ Open **config/app.php** and add the service provider and alias:
 Amqp::publish('routing-key', 'message');
 ```
 
-### Push message with routing key and custom queue
-
-```php	
-Amqp::publish('routing-key', 'message' , ['queue' => 'queue-name']);
-```
-
 ### Push message with routing key and overwrite properties
 
 ```php	
@@ -159,10 +159,33 @@ Amqp::consume(function ($message) {
 ### Publishing a message
 
 ```php
-\Amqp::publish('', 'message' , [
+Amqp::publish('', 'message' , [
     'exchange_type' => 'fanout',
     'exchange' => 'amq.fanout',
 ]);
+```
+
+## Disable publishing
+
+This is useful for development and sync requirements, if you are using observers or events to trigger messages over AMQP you may want to temporarily disable the publishing of messages. When turning the publishing off the publish method will silently drop the message and return.
+
+### Check state
+
+```php
+if(Amqp::isEnabled()) {
+    // It is going to publish
+}
+```
+### Disable
+
+```php
+Amqp::disable();
+```
+
+### Enable
+
+```php
+Amqp::enable();
 ```
 
 ## Credits
