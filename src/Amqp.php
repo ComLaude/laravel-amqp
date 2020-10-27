@@ -15,14 +15,14 @@ class Amqp
     /**
      * Flag for globally disabling message publishing
      */
-    private static $publishingDisabled = false;
+    private static $publishingEnabled = true;
 
     /**
      * Globally disables publishing messages
      */
     public function off()
     {
-        self::$publishingDisabled = true;
+        self::$publishingEnabled = false;
     }
 
     /**
@@ -30,7 +30,7 @@ class Amqp
      */
     public function on()
     {
-        self::$publishingDisabled = false;
+        self::$publishingEnabled = true;
     }
 
     /**
@@ -42,7 +42,7 @@ class Amqp
      */
     public function publish($route, $message, array $properties = [])
     {
-        if (self::$publishingDisabled === true) {
+        if (self::$publishingEnabled === false) {
             return;
         }
         $message = new AMQPMessage($message);
