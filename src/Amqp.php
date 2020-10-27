@@ -50,7 +50,7 @@ class Amqp
      */
     public function publish($route, $message, array $properties = [])
     {
-        if ($this->isEnabled()) {
+        if (! $this->isEnabled()) {
             return;
         }
         $message = new AMQPMessage($message);
