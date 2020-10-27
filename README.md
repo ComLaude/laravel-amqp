@@ -169,16 +169,23 @@ Amqp::publish('', 'message' , [
 
 This is useful for development and sync requirements, if you are using observers or events to trigger messages over AMQP you may want to temporarily disable the publishing of messages. When turning the publishing off the publish method will silently drop the message and return.
 
+### Check state
+
+```php
+if(Amqp::isEnabled()) {
+    // It is going to publish
+}
+```
 ### Disable
 
 ```php
-Amqp::off();
+Amqp::disable();
 ```
 
 ### Enable
 
 ```php
-Amqp::on();
+Amqp::enable();
 ```
 
 ## Credits
