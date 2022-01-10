@@ -2,14 +2,15 @@
 namespace ComLaude\Amqp;
 
 use Closure;
-use PhpAmqpLib\Connection\AMQPSSLConnection;
-use PhpAmqpLib\Connection\AMQPStreamConnection;
-use PhpAmqpLib\Exception\AMQPChannelClosedException;
-use PhpAmqpLib\Exception\AMQPConnectionClosedException;
-use PhpAmqpLib\Exception\AMQPConnectionException;
-use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
-use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Connection\AMQPSSLConnection;
+use PhpAmqpLib\Exception\AMQPTimeoutException;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Exception\AMQPConnectionException;
+use PhpAmqpLib\Exception\AMQPChannelClosedException;
+use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
+use PhpAmqpLib\Exception\AMQPProtocolChannelException;
+use PhpAmqpLib\Exception\AMQPConnectionClosedException;
 
 /**
  * @author David krizanic <david.krizanic@comlaude.com>
@@ -118,10 +119,11 @@ class AmqpChannel
     /**
      * @param Closure $callback
      * @param string $tag
+     * @param boolean $addCallbacks
      * @return bool
      * @throws \Exception
      */
-    public function consume(Closure $callback, $tag = null)
+    public function consume(Closure $callback, $tag = null, $addCallbacks = true)
     {
         $this->queue = $this->declareQueue();
         if ((! isset($this->properties['persistent']) || $this->properties['persistent'] == false) && is_array($this->queue) && $this->queue[1] == 0) {
@@ -139,38 +141,55 @@ class AmqpChannel
             );
         }
 
-        $object = $this;
-        $channelCallback = function ($message) use ($object, $callback) {
-            if ($message->get("redelivered") === true && $object->redeliveryCheck($message)) {
-                $object->redeliverySkip($message);
-            } else {
-                $callback($message);
+        if ($addCallbacks) {
+            $object = $this;
+            $channelCallback = function ($message) use ($object, $callback) {
+                if ($message->get("redelivered") === true && $object->redeliveryCheck($message)) {
+                    $object->redeliverySkip($message);
+                } else {
+                    $callback($message);
+                }
+            };
+    
+            $this->channel->basic_consume(
+                $this->properties['queue'],
+                ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . $tag,
+                $this->properties['consumer_no_local'] ?? false,
+                $this->properties['consumer_no_ack'] ?? false,
+                $this->properties['consumer_exclusive'] ?? false,
+                $this->properties['consumer_nowait'] ?? false,
+                $channelCallback,
+            );
+    
+            
+            // Add this callback to the stack if reconnection will occur
+            if ($this->properties['persistent'] ?? false) {
+                $this->callbacks[] = $channelCallback;
             }
-        };
-
-        $this->channel->basic_consume(
-            $this->properties['queue'],
-            ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . $tag,
-            $this->properties['consumer_no_local'] ?? false,
-            $this->properties['consumer_no_ack'] ?? false,
-            $this->properties['consumer_exclusive'] ?? false,
-            $this->properties['consumer_nowait'] ?? false,
-            $channelCallback,
-        );
-
-        
-        // Add this callback to the stack if reconnection will occur
-        if ($this->properties['persistent'] ?? false) {
-            $this->callbacks[] = $channelCallback;
         }
         
+        $restart = false;
+        $startTime = time();
+
         do {
             try {
                 $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
             } catch (AMQPTimeoutException $e) {
                 return true;
             }
+
+            if ($this->properties['persistent_restart_period'] > 0
+                && $this->properties['persistent_restart_period'] < time() - $startTime
+            ) {
+                $restart = true;
+                break;
+            }
         } while (count($this->channel->callbacks) || $this->properties['persistent'] ?? false);
+
+        if ($restart) {
+            $this->reconnect();
+            return $this->consume($callback, $tag, false);
+        }
 
         return true;
     }
@@ -359,7 +378,13 @@ class AmqpChannel
     private function reconnect()
     {
         $this->retry--;
-        $this->disconnect();
+
+        try {
+            $this->disconnect();
+        }  catch (AMQPProtocolChannelException $e) {
+            // just continue with reconnect
+        }
+
         $this->connect();
         $this->declareExchange();
         $this->declareQueue();
