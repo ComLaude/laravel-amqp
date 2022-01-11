@@ -2,15 +2,15 @@
 namespace ComLaude\Amqp;
 
 use Closure;
-use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Connection\AMQPSSLConnection;
-use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
-use PhpAmqpLib\Exception\AMQPConnectionException;
 use PhpAmqpLib\Exception\AMQPChannelClosedException;
-use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
-use PhpAmqpLib\Exception\AMQPProtocolChannelException;
 use PhpAmqpLib\Exception\AMQPConnectionClosedException;
+use PhpAmqpLib\Exception\AMQPConnectionException;
+use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
+use PhpAmqpLib\Exception\AMQPTimeoutException;
+use PhpAmqpLib\Exception\AMQPProtocolChannelException;
+use PhpAmqpLib\Message\AMQPMessage;
 
 /**
  * @author David krizanic <david.krizanic@comlaude.com>
