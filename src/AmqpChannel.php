@@ -176,6 +176,9 @@ class AmqpChannel
                 $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
             } catch (AMQPTimeoutException $e) {
                 return true;
+            } catch (AMQPProtocolChannelException $e) {
+                $restart = true;
+                break;
             }
 
             if ($this->properties['persistent_restart_period'] > 0
