@@ -238,6 +238,8 @@ class AmqpChannel
                 return $this->reject($message, $item[1]);
             }
         }
+        $this->acknowledgeFailures = [];
+        $this->rejectFailures = [];
         return true;
     }
 
@@ -248,6 +250,8 @@ class AmqpChannel
      */
     public function acknowledge(AMQPMessage $message)
     {
+        // We cache the acknowledge just in case it is redelivered
+        $this->acknowledgeFailures[] = $message;
         try {
             $this->channel->basic_ack($message->delivery_info['delivery_tag']);
 
@@ -255,7 +259,6 @@ class AmqpChannel
                 $this->channel->basic_cancel($message->delivery_info['consumer_tag']);
             }
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-            $this->acknowledgeFailures[] = $message;
             $this->reconnect();
         }
     }
@@ -267,10 +270,11 @@ class AmqpChannel
      */
     public function reject(AMQPMessage $message, $requeue = false)
     {
+        // We cache the reject just in case it is redelivered
+        $this->rejectFailures[] = [ $message, $requeue ];
         try {
             $this->channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-            $this->rejectFailures[] = array( $message, $requeue );
             $this->reconnect();
         }
     }
