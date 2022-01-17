@@ -21,7 +21,7 @@ class AMQPChannelDelayedTest extends BaseTest
     {
         parent::setUp();
 
-        if(empty($this->master)) {
+        if (empty($this->master)) {
             $this->master = AmqpChannel::create( array_merge( $this->properties, [
 
                 // Travis defaults here
