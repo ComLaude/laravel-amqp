@@ -29,8 +29,8 @@ class AmqpChannel
     private $channel;
     private $callbacks;
     private $queue;
-    private $acknowledgeFailures;
-    private $rejectFailures;
+    private $lastAcknowledgeFailure;
+    private $lastRejectFailure;
 
     /**
      * Number of times the connection will be retried
@@ -47,8 +47,9 @@ class AmqpChannel
         $this->properties = $properties;
         $this->retry = $properties['reconnect_attempts'] ?? 3;
         $this->callbacks = [];
-        $this->acknowledgeFailures = [];
-        $this->rejectFailures = [];
+        $this->lastAcknowledgeFailure = null;
+        $this->lastRejectFailure = null;
+        
         $this->connect();
         $this->declareExchange();
         $this->declareQueue();
@@ -204,18 +205,20 @@ class AmqpChannel
      */
     public function redeliveryCheck(AMQPMessage $message)
     {
-        if (! empty($this->acknowledgeFailures) || ! empty($this->rejectFailures)) {
-            foreach ($this->acknowledgeFailures as $item) {
-                if ($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
-                    return true;
-                }
-            }
-            foreach ($this->rejectFailures as $item) {
-                if ($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
-                    return true;
-                }
-            }
+        if (! empty($this->lastAcknowledgeFailure)
+            && $this->lastAcknowledgeFailure->body === $message->body
+            && $this->lastAcknowledgeFailure->get('routing_key') === $message->get('routing_key')
+        ) {
+            return true;
         }
+
+        if (! empty($this->lastRejectFailure)
+            && $this->lastRejectFailure[0]->body === $message->body
+            && $this->lastRejectFailure[0]->get('routing_key') === $message->get('routing_key')
+        ) {
+            return true;
+        }
+
         return false;
     }
 
@@ -226,20 +229,24 @@ class AmqpChannel
      */
     public function redeliverySkip(AMQPMessage $message)
     {
-        foreach ($this->acknowledgeFailures as $index => $item) {
-            if ($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
-                unset($this->acknowledgeFailures[$index]);
-                return $this->acknowledge($message);
-            }
+        if (! empty($this->lastAcknowledgeFailure)
+            && $this->lastAcknowledgeFailure->body === $message->body
+            && $this->lastAcknowledgeFailure->get('routing_key') === $message->get('routing_key')
+        ) {
+            $this->lastAcknowledgeFailure = null;
+            return $this->acknowledge($message);
         }
-        foreach ($this->rejectFailures as $index => $item) {
-            if ($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
-                unset($this->rejectFailures[$index]);
-                return $this->reject($message, $item[1]);
-            }
+
+        if (! empty($this->lastRejectFailure)
+            && $this->lastRejectFailure[0]->body === $message->body
+            && $this->lastRejectFailure[0]->get('routing_key') === $message->get('routing_key')
+        ) {
+            $this->lastRejectFailure = null;
+            return $this->reject($message, $this->lastRejectFailure[1]);
         }
-        $this->acknowledgeFailures = [];
-        $this->rejectFailures = [];
+        
+        $this->lastAcknowledgeFailure = null;
+        $this->lastRejectFailure = null;
         return true;
     }
 
@@ -251,7 +258,7 @@ class AmqpChannel
     public function acknowledge(AMQPMessage $message)
     {
         // We cache the acknowledge just in case it is redelivered
-        $this->acknowledgeFailures[] = $message;
+        $this->lastAcknowledgeFailure = $message;
         try {
             $this->channel->basic_ack($message->delivery_info['delivery_tag']);
 
@@ -271,7 +278,7 @@ class AmqpChannel
     public function reject(AMQPMessage $message, $requeue = false)
     {
         // We cache the reject just in case it is redelivered
-        $this->rejectFailures[] = [ $message, $requeue ];
+        $this->lastRejectFailure = [$message, $requeue];
         try {
             $this->channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
