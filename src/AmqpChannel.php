@@ -241,8 +241,9 @@ class AmqpChannel
             && $this->lastReject[0]->body === $message->body
             && $this->lastReject[0]->get('routing_key') === $message->get('routing_key')
         ) {
+            $requeue = $this->lastReject[1];
             $this->lastReject = null;
-            return $this->reject($message, $this->lastReject[1]);
+            return $this->reject($message, $requeue);
         }
         
         $this->lastAcknowledge = null;

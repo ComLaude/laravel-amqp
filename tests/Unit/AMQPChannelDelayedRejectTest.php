@@ -31,7 +31,6 @@ class AMQPChannelDelayedRejectTest extends BaseTest
                 'password'              => 'guest',
 
                 'queue' => 'delaytestreject',
-                'queue_auto_delete' => true,
                 'exchange' => 'test',
                 'consumer_tag' => 'test',
                 'connect_options' => ['heartbeat' => 2],
@@ -42,7 +41,7 @@ class AMQPChannelDelayedRejectTest extends BaseTest
                     ],
                 ],
                 'timeout' => 1,
-            ]), [ "mock-base" => true, "persistent" => false ] );
+            ]), [ "mock-base" => true, "persistent" => true ] );
             
             $this->channel = $this->master->getChannel();
             $this->connection = $this->master->getConnection();
@@ -71,6 +70,8 @@ class AMQPChannelDelayedRejectTest extends BaseTest
             sleep(5);
             $master->reject($consumedMessage);
         });
+
+        $this->setUp();
 
         $message2 = new AMQPMessage('Test message 2');
         $this->master->publish('example.route.delayreject', $message2);
