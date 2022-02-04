@@ -3,7 +3,6 @@
 namespace ComLaude\Amqp;
 
 use Closure;
-use ComLaude\Amqp\AmqpChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**

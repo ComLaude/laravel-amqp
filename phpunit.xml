@@ -4,8 +4,13 @@
     <include>
       <directory suffix=".php">./src</directory>
     </include>
+    <exclude>
+        <file>./src/AmqpServiceProvider.php</file>
+        <file>./src/LumenServiceProvider.php</file>
+        <file>./src/Facades/Amqp.php</file>
+    </exclude>
     <report>
-      <text outputFile="php://stdout" showUncoveredFiles="false" />
+      <text outputFile="php://stdout" showUncoveredFiles="true" />
     </report>
   </coverage>
   <testsuites>

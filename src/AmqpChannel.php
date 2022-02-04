@@ -74,7 +74,7 @@ class AmqpChannel
         }
         return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
     }
-    
+
     /**
      * Returns current connection
      *
@@ -84,7 +84,7 @@ class AmqpChannel
     {
         return $this->connection;
     }
-    
+
     /**
      * Returns current channel
      *
@@ -102,16 +102,19 @@ class AmqpChannel
      */
     public function publish($route, $message)
     {
+        // Before publishing the retry counter should be re-set
+        $this->retry = $this->properties['reconnect_attempts'] ?? 3;
+
+        // We will re-attempt the publish method after reconnecting if necessary, up to this->retry times
         while ($this->retry >= 0) {
             // If a connection-level issue occurs, atempt to recconnect $this->retry times
             try {
-                // Fire the basic command and reset the retry count if it worked
-                $result = $this->channel->basic_publish($message, $this->properties['exchange'], $route);
-                $this->retry = $this->properties['reconnect_attempts'] ?? 3;
-
-                // Return the result to the caller
-                return $result;
+                // Fire the basic command and return the result to the caller
+                return $this->channel->basic_publish($message, $this->properties['exchange'], $route);
             } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+                if (--$this->retry < 0) {
+                    throw $e;
+                }
                 $this->reconnect();
             }
         }
@@ -145,13 +148,13 @@ class AmqpChannel
         if ($addCallbacks) {
             $object = $this;
             $channelCallback = function ($message) use ($object, $callback) {
-                if ($message->get("redelivered") === true && $object->redeliveryCheck($message)) {
+                if ($message->get('redelivered') === true && $object->redeliveryCheck($message)) {
                     $object->redeliverySkip($message);
                 } else {
                     $callback($message);
                 }
             };
-    
+
             $this->channel->basic_consume(
                 $this->properties['queue'],
                 ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . $tag,
@@ -161,14 +164,14 @@ class AmqpChannel
                 $this->properties['consumer_nowait'] ?? false,
                 $channelCallback,
             );
-    
-            
+
+
             // Add this callback to the stack if reconnection will occur
             if ($this->properties['persistent'] ?? false) {
                 $this->callbacks[] = $channelCallback;
             }
         }
-        
+
         $restart = false;
         $startTime = time();
 
@@ -245,7 +248,7 @@ class AmqpChannel
             $this->lastReject = null;
             return $this->reject($message, $requeue);
         }
-        
+
         $this->lastAcknowledge = null;
         $this->lastReject = null;
         return true;
@@ -372,7 +375,7 @@ class AmqpChannel
             $this->properties['queue_nowait'] ?? false,
             $this->properties['queue_properties'] ?? ['x-ha-policy' => ['S', 'all']]
         );
-      
+
         if (! empty($this->properties['bindings'])) {
             foreach ((array) $this->properties['bindings'] as $binding) {
                 if ($binding['queue'] === $this->properties['queue']) {
@@ -392,11 +395,9 @@ class AmqpChannel
      */
     private function reconnect()
     {
-        $this->retry--;
-
         try {
             $this->disconnect();
-        }  catch (AMQPProtocolChannelException $e) {
+        } catch (AMQPProtocolChannelException $e) {
             // just continue with reconnect
         }
 
