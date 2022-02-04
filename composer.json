@@ -28,7 +28,8 @@
     "phpunit/phpunit": "^9.2",
     "mockery/mockery": "~0.9",
     "illuminate/support": ">=v5.5.28",
-    "tightenco/tlint": "^6.0"
+    "tightenco/tlint": "^6.0",
+    "php-mock/php-mock-phpunit": "^2.6"
   },
   "autoload": {
     "psr-4": {

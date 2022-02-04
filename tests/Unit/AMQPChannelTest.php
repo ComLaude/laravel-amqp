@@ -51,9 +51,36 @@ class AMQPChannelTest extends BaseTest
 
     public function testCreateAmqpChannel()
     {
+        $this->master = AmqpChannel::create( array_merge( $this->properties, [
+
+            // Travis defaults here
+            'host'                  => 'localhost',
+            'port'                  =>  5672,
+            'username'              => 'guest',
+            'password'              => 'guest',
+
+            'queue' => 'test',
+            'queue_auto_delete' => true,
+            'exchange' => 'test',
+            'consumer_tag' => 'test',
+            'connect_options' => ['heartbeat' => 2],
+            'bindings' => [
+                [
+                    'queue'    => 'test',
+                    'routing'  => 'example.route.key',
+                ],
+            ],
+            'timeout' => 1,
+        ]), [ "mock-base" => true, "persistent" => false ] );
+        
+        $this->channel = $this->master->getChannel();
+        $this->connection = $this->master->getConnection();
+        
         $this->assertInstanceOf(AmqpChannel::class, $this->master);
         $this->assertInstanceOf(AMQPChannelBase::class, $this->channel);
+        $this->assertInstanceOf(AMQPChannelBase::class, $this->master->getChannel());
         $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
+        $this->assertInstanceOf(AMQPStreamConnection::class, $this->master->getConnection());
     }
 
     public function testPublishToChannel()
