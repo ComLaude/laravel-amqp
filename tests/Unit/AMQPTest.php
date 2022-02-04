@@ -3,7 +3,6 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\Amqp;
-use ComLaude\Amqp\AmqpChannel;
 use ComLaude\Amqp\Tests\BaseTest;
 use phpmock\MockBuilder;
 
