@@ -176,7 +176,7 @@ class AMQPTest extends BaseTest
         $counter = 0;
 
         $mockedFacade->publish('example.route.facade_disable', $messageBody, self::$usedProperties);
-        $mockedFacade->consume(function($message) use ($messageBody, $messageBody2, &$counter, $mockedFacade) {
+        $mockedFacade->consume(function($message) use ($messageBody, $messageBody3, &$counter, $mockedFacade) {
             if($counter%2 == 1) {
                 $this->assertEquals($messageBody3, $message->getBody());
             } else {
