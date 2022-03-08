@@ -418,7 +418,7 @@ class AmqpChannel
             foreach ($this->callbacks as $consumerCallback) {
                 $this->channel->basic_consume(
                     $this->properties['queue'],
-                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . '-retry' . $this->retry,
+                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . uniqid() . '-retry' . $this->retry,
                     $this->properties['consumer_no_local'] ?? false,
                     $this->properties['consumer_no_ack'] ?? false,
                     $this->properties['consumer_exclusive'] ?? false,
