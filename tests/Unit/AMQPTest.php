@@ -14,11 +14,11 @@ class AMQPTest extends BaseTest
     protected static $mocks;
     protected static $usedProperties;
 
-    function setUp(): void
+    public function setUp(): void
     {
         parent::setUp();
 
-        $usedProperties = array_merge( $this->properties, [
+        $usedProperties = array_merge($this->properties, [
             'host'                  => 'localhost',
             'port'                  =>  5672,
             'username'              => 'guest',
@@ -39,24 +39,24 @@ class AMQPTest extends BaseTest
         ]);
         self::$usedProperties = $usedProperties;
 
-        if(empty(self::$mocks)) {
+        if (empty(self::$mocks)) {
             $builder = new MockBuilder();
             $builder->setNamespace('ComLaude\\Amqp')
-                    ->setName("config")
-                    ->setFunction(
-                        function ($string) use($usedProperties) {
-                            if($string === 'amqp.use') { 
+                ->setName('config')
+                ->setFunction(
+                    function ($string) use ($usedProperties) {
+                            if ($string === 'amqp.use') {
                                 return '';
                             }
                             return $usedProperties;
                         }
-                    );
+                );
             self::$mocks = $builder->build();
             self::$mocks->enable();
         }
     }
 
-    function testPublishAndConsume()
+    public function testPublishAndConsume()
     {
         $messageBody = 'Test message publish and consume';
 
@@ -66,7 +66,7 @@ class AMQPTest extends BaseTest
 
         $counter = 0;
 
-        $mockedFacade->consume(function($message) use ($messageBody, &$counter) {
+        $mockedFacade->consume(function ($message) use ($messageBody, &$counter) {
             $this->assertEquals($messageBody, $message->getBody());
             $counter++;
         });
@@ -74,7 +74,7 @@ class AMQPTest extends BaseTest
         $this->assertEquals(2, $counter);
     }
 
-    function testPublishConsumeAndAcknowledge()
+    public function testPublishConsumeAndAcknowledge()
     {
         self::$usedProperties = array_merge(
             self::$usedProperties,
@@ -96,8 +96,8 @@ class AMQPTest extends BaseTest
         $counter = 0;
 
         $mockedFacade->publish('example.route.facade_acknowledge', $messageBody, self::$usedProperties);
-        $mockedFacade->consume(function($message) use ($messageBody, $messageBody2, &$counter, $mockedFacade) {
-            if($counter == 1) {
+        $mockedFacade->consume(function ($message) use ($messageBody, $messageBody2, &$counter, $mockedFacade) {
+            if ($counter == 1) {
                 $this->assertEquals($messageBody2, $message->getBody());
             } else {
                 $this->assertEquals($messageBody, $message->getBody());
@@ -105,15 +105,16 @@ class AMQPTest extends BaseTest
             $mockedFacade->acknowledge($message, self::$usedProperties);
             $counter++;
         }, self::$usedProperties);
-        
+
         $mockedFacade->publish('example.route.facade_acknowledge', $messageBody2, self::$usedProperties);
         // The original consumer is still attached so just force it to get triggered again
-        $mockedFacade->consume(function(){}, self::$usedProperties);
+        $mockedFacade->consume(function () {
+        }, self::$usedProperties);
 
         $this->assertEquals(2, $counter);
     }
 
-    function testPublishConsumeAndReject()
+    public function testPublishConsumeAndReject()
     {
         self::$usedProperties = array_merge(
             self::$usedProperties,
@@ -135,8 +136,8 @@ class AMQPTest extends BaseTest
         $counter = 0;
 
         $mockedFacade->publish('example.route.facade_reject', $messageBody, self::$usedProperties);
-        $mockedFacade->consume(function($message) use ($messageBody, $messageBody2, &$counter, $mockedFacade) {
-            if($counter%2 == 1) {
+        $mockedFacade->consume(function ($message) use ($messageBody, $messageBody2, &$counter, $mockedFacade) {
+            if ($counter % 2 == 1) {
                 $this->assertEquals($messageBody2, $message->getBody());
             } else {
                 $this->assertEquals($messageBody, $message->getBody());
@@ -144,15 +145,16 @@ class AMQPTest extends BaseTest
             $mockedFacade->reject($message, true, self::$usedProperties);
             $counter++;
         }, self::$usedProperties);
-        
+
         $mockedFacade->publish('example.route.facade_reject', $messageBody2, self::$usedProperties);
         // The original consumer is still attached so just force it to get triggered again
-        $mockedFacade->consume(function(){}, self::$usedProperties);
+        $mockedFacade->consume(function () {
+        }, self::$usedProperties);
 
         $this->assertEquals(2, $counter);
     }
 
-    function testEnableDisablePublishing()
+    public function testEnableDisablePublishing()
     {
         self::$usedProperties = array_merge(
             self::$usedProperties,
@@ -175,8 +177,8 @@ class AMQPTest extends BaseTest
         $counter = 0;
 
         $mockedFacade->publish('example.route.facade_disable', $messageBody, self::$usedProperties);
-        $mockedFacade->consume(function($message) use ($messageBody, $messageBody3, &$counter, $mockedFacade) {
-            if($counter%2 == 1) {
+        $mockedFacade->consume(function ($message) use ($messageBody, $messageBody3, &$counter, $mockedFacade) {
+            if ($counter % 2 == 1) {
                 $this->assertEquals($messageBody3, $message->getBody());
             } else {
                 $this->assertEquals($messageBody, $message->getBody());
@@ -191,7 +193,8 @@ class AMQPTest extends BaseTest
 
         $mockedFacade->publish('example.route.facade_disable', $messageBody3, self::$usedProperties);
         // The original consumer is still attached so just force it to get triggered again
-        $mockedFacade->consume(function(){}, self::$usedProperties);
+        $mockedFacade->consume(function () {
+        }, self::$usedProperties);
 
         $this->assertEquals(2, $counter);
     }

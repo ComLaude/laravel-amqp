@@ -17,12 +17,12 @@ class AMQPChannelDelayedRejectTest extends BaseTest
     protected $channel;
     protected $connection;
 
-    function setUp(): void
+    public function setUp(): void
     {
         parent::setUp();
 
         if (empty($this->master)) {
-            $this->master = AmqpChannel::create( array_merge( $this->properties, [
+            $this->master = AmqpChannel::create(array_merge($this->properties, [
 
                 // Travis defaults here
                 'host'                  => 'localhost',
@@ -41,8 +41,8 @@ class AMQPChannelDelayedRejectTest extends BaseTest
                     ],
                 ],
                 'timeout' => 1,
-            ]), [ "mock-base" => true, "persistent" => true ] );
-            
+            ]), ['mock-base' => true, 'persistent' => true]);
+
             $this->channel = $this->master->getChannel();
             $this->connection = $this->master->getConnection();
         }
@@ -58,14 +58,14 @@ class AMQPChannelDelayedRejectTest extends BaseTest
     public function testPublishToChannelAndConsumeDelayed()
     {
         $message1 = new AMQPMessage('Test message consume delayed');
-        
+
         $this->master->publish('example.route.delayreject', $message1);
-        
+
         $object = $this;
         $master = $this->master;
 
         // This will hit a heartbeat missed exception but recover from it
-        $this->master->consume(function($consumedMessage) use ($message1, $object, $master) {
+        $this->master->consume(function ($consumedMessage) use ($message1, $object, $master) {
             $object->assertEquals($consumedMessage->body, $message1->body);
             sleep(5);
             $master->reject($consumedMessage);
@@ -77,7 +77,7 @@ class AMQPChannelDelayedRejectTest extends BaseTest
         $this->master->publish('example.route.delayreject', $message2);
 
         // The second consume should contain the expected second message
-        $this->master->consume(function($consumedMessage) use ($message2, $object, $master) {
+        $this->master->consume(function ($consumedMessage) use ($message2, $object, $master) {
             $object->assertEquals($message2->body, $consumedMessage->body);
             $master->acknowledge($consumedMessage);
         });

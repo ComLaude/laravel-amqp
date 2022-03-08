@@ -9,13 +9,13 @@ class BaseTest extends TestCase
 {
     protected $properties;
 
-    function setUp(): void
+    public function setUp(): void
     {
         $amqpConfig = include dirname(__FILE__) . '/../config/amqp.php';
         $this->properties = $amqpConfig['properties'][$amqpConfig['use']];
     }
 
-    function tearDown(): void
+    public function tearDown(): void
     {
         Mockery::close();
     }
