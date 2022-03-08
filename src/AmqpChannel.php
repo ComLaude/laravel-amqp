@@ -405,6 +405,14 @@ class AmqpChannel
         $this->declareExchange();
         $this->declareQueue();
 
+        if (isset($this->properties['qos']) && $this->properties['qos'] === true) {
+            $this->channel->basic_qos(
+                $this->properties['qos_prefetch_size'] ?? 0,
+                $this->properties['qos_prefetch_count'] ?? 1,
+                $this->properties['qos_a_global'] ?? false
+            );
+        }
+
         // Re-attach the original callbacks if any were lost
         if (! empty($this->callbacks)) {
             foreach ($this->callbacks as $consumerCallback) {

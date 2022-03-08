@@ -42,6 +42,8 @@ class AMQPChannelTest extends BaseTest
                     ],
                 ],
                 'timeout' => 1,
+                'qos' => true,
+                'qos_prefetch_count' => 1,
             ]), [ "mock-base" => true, "persistent" => false ] );
             
             $this->channel = $this->master->getChannel();
