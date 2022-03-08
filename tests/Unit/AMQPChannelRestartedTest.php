@@ -38,6 +38,8 @@ class AMQPChannelRestartedTest extends BaseTest
             ],
             'timeout' => 1,
             'persistent_restart_period' => 1,
+            'qos' => true,
+            'qos_prefetch_count' => 5,
         ]), ['mock-base' => true, 'persistent' => false]);
     }
 
