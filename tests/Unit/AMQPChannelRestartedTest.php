@@ -13,11 +13,11 @@ class AMQPChannelRestartedTest extends BaseTest
 {
     protected $master;
 
-    function setUp(): void
+    public function setUp(): void
     {
         parent::setUp();
 
-        $this->master = AmqpChannel::create( array_merge( $this->properties, [
+        $this->master = AmqpChannel::create(array_merge($this->properties, [
 
             // Travis defaults here
             'host'                  => 'localhost',
@@ -38,20 +38,22 @@ class AMQPChannelRestartedTest extends BaseTest
             ],
             'timeout' => 1,
             'persistent_restart_period' => 1,
-        ]), [ "mock-base" => true, "persistent" => false ] );
+            'qos' => true,
+            'qos_prefetch_count' => 5,
+        ]), ['mock-base' => true, 'persistent' => false]);
     }
 
     public function testPublishToChannelAndConsumeGetsConnectionRestarted()
     {
         $message1 = new AMQPMessage('Test message consume delayed1');
-        
+
         $this->master->publish('example.route.restart', $message1);
-        
+
         $object = $this;
         $master = $this->master;
 
         // This will trigger the restart
-        $this->master->consume(function($consumedMessage) use ($message1, $object, $master) {
+        $this->master->consume(function ($consumedMessage) use ($message1, $object, $master) {
             $object->assertEquals($consumedMessage->body, $message1->body);
             sleep(3);
             $master->acknowledge($consumedMessage);
@@ -61,7 +63,7 @@ class AMQPChannelRestartedTest extends BaseTest
         $this->master->publish('example.route.restart', $message2);
 
         // The second consume should contain the expected second message
-        $this->master->consume(function($consumedMessage) use ($message2, $object, $master) {
+        $this->master->consume(function ($consumedMessage) use ($message2, $object, $master) {
             $object->assertEquals($consumedMessage->body, $message2->body);
             $master->acknowledge($consumedMessage);
         });
