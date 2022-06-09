@@ -7,8 +7,6 @@ arch: arm64
 
 language: php
 
-sudo: required
-
 php:
   - 8.0
 
