@@ -56,6 +56,14 @@ class AmqpTest extends BaseTest
         }
     }
 
+    public function tearDown(): void
+    {
+        if (! empty(self::$mocks)) {
+            self::$mocks->disable();
+            self::$mocks = null;
+        }
+    }
+
     public function testPublishAndConsume()
     {
         $messageBody = 'Test message publish and consume';
@@ -206,7 +214,8 @@ class AmqpTest extends BaseTest
         $mockedFacade->request(
             'example.route',
             ['message1', 'message2'],
-            fn ($message) => null
+            fn ($message) => null,
+            []
         );
         $doneTime = microtime(true) - $startTime;
         $this->assertGreaterThan(0.5, $doneTime);

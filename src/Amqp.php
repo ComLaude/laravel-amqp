@@ -117,7 +117,7 @@ class Amqp
             $route,
             is_array($messages) ? $messages : [$messages],
             $callback,
-            $properties['correlation_id'] ?? null
+            $properties
         );
     }
 }

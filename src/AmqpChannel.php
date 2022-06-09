@@ -164,11 +164,12 @@ class AmqpChannel
                 }
                 if ($message->has('reply_to') && $message->has('correlation_id')) {
                     // Publish job is accepted message, to inform the requestor that it's being worked on
-                    $this->publish($message->get('reply_to'), new AMQPMessage('', [
+                    $responseChannel = self::create(['exchange' => '']);
+                    $responseChannel->publish($message->get('reply_to'), new AMQPMessage('', [
                         'correlation_id' => $message->get('correlation_id') . '_accepted',
                     ]));
                     // Publish response to the original job, using return value from handler
-                    return $this->publish($message->get('reply_to'), new AMQPMessage($callback($message), [
+                    return $responseChannel->publish($message->get('reply_to'), new AMQPMessage($callback($message), [
                         'correlation_id' => $message->get('correlation_id') . '_handled',
                     ]));
                 }
@@ -229,17 +230,15 @@ class AmqpChannel
      * @param Closure $callback
      * @return bool
      */
-    public function request($route, $messages, $callback, $requestId = null)
+    public function request($route, $messages, $callback, $properties = [])
     {
         // Publish all the messages
-        if ($requestId === null) {
-            $requestId = uniqid() . '_' . count($messages);
-        }
+        $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
         foreach ($messages as $index => $message) {
             // Tweak message to include reply-to to our exclusive queue
             // we only need one correlation id for this entire request,
             // together with index of each message we should be good
-            $this->publish($route, new AMQPMessage($message, [
+            self::create($properties)->publish($route, new AMQPMessage($message, [
                 'reply_to' => $this->queue[0],
                 'correlation_id' => $requestId,
             ]));
