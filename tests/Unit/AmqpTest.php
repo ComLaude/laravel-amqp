@@ -9,7 +9,7 @@ use phpmock\MockBuilder;
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
  */
-class AMQPTest extends BaseTest
+class AmqpTest extends BaseTest
 {
     protected static $mocks;
     protected static $usedProperties;
@@ -45,11 +45,11 @@ class AMQPTest extends BaseTest
                 ->setName('config')
                 ->setFunction(
                     function ($string) use ($usedProperties) {
-                            if ($string === 'amqp.use') {
-                                return '';
-                            }
-                            return $usedProperties;
+                        if ($string === 'amqp.use') {
+                            return '';
                         }
+                        return $usedProperties;
+                    }
                 );
             self::$mocks = $builder->build();
             self::$mocks->enable();
@@ -197,5 +197,19 @@ class AMQPTest extends BaseTest
         }, self::$usedProperties);
 
         $this->assertEquals(2, $counter);
+    }
+
+    public function testRequestNotAccepted()
+    {
+        $mockedFacade = new Amqp;
+        $startTime = microtime(true);
+        $mockedFacade->request(
+            'example.route',
+            ['message1', 'message2'],
+            fn ($message) => null
+        );
+        $doneTime = microtime(true) - $startTime;
+        $this->assertGreaterThan(0.5, $doneTime);
+        $this->assertLessThan(1, $doneTime);
     }
 }

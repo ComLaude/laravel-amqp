@@ -11,7 +11,7 @@ use PhpAmqpLib\Message\AMQPMessage;
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
  */
-class AMQPChannelTest extends BaseTest
+class AmqpChannelTest extends BaseTest
 {
     protected $master;
     protected $channel;

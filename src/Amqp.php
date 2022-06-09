@@ -43,7 +43,7 @@ class Amqp
     /**
      * Publishes a message to the queue
      *
-     * @param string $routing
+     * @param string $route
      * @param mixed $message
      * @param array $properties
      */
@@ -89,5 +89,35 @@ class Amqp
     public function reject(AMQPMessage $message, $requeue = false, $properties = [])
     {
         AmqpChannel::create($properties)->reject($message);
+    }
+
+    /**
+     * Publishes messages with routing key and awaits a response on a dedicated reply-to queue
+     * the responses for each message are passed to $callback to handle
+     *
+     * @param string $route
+     * @param mixed $message
+     * @param Closure $callback
+     * @param array $properties
+     */
+    public function request($route, $messages, Closure $callback, $properties = [])
+    {
+        // We override the queue away from default properties since we're going to
+        // create an anonymous, exclusive queue to accept responses, we still permit
+        // explicit overrides from the caller
+        AmqpChannel::create(array_merge([
+            'exchange' => '',
+            'queue' => '',
+            'queue_passive' => false,
+            'queue_durable' => false,
+            'queue_exclusive' => true,
+            'queue_auto_delete' => true,
+            'queue_nowait' => false,
+        ], $properties))->request(
+            $route,
+            is_array($messages) ? $messages : [$messages],
+            $callback,
+            $properties['correlation_id'] ?? null
+        );
     }
 }
