@@ -232,6 +232,12 @@ class AmqpChannel
      */
     public function request($route, $messages, $callback, $properties = [])
     {
+        // If this queue is already consuming something we have to reset it to remove the existing callback
+        if ($this->channel->is_consuming()) {
+            $this->channel->basic_cancel('request-exclusive-listener');
+            $this->declareQueue();
+        }
+
         // Publish all the messages
         $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
         foreach ($messages as $index => $message) {
@@ -254,7 +260,7 @@ class AmqpChannel
         // We check the exclusive queue for messages, either confirming or handling the job
         $this->channel->basic_consume(
             $this->queue[0],
-            '',
+            'request-exclusive-listener',
             false,
             true,
             false,
