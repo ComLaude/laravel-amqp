@@ -12,10 +12,11 @@ use phpmock\MockBuilder;
  */
 class AmqpChannelRequestTest extends BaseTest
 {
-    protected $master;
-    protected $queue;
     protected static $mocks;
     protected static $usedProperties;
+    
+    protected $master;
+    protected $queue;
 
     public function setUp(): void
     {
