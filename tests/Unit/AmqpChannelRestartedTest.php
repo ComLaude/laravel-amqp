@@ -9,7 +9,7 @@ use PhpAmqpLib\Message\AMQPMessage;
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
  */
-class AMQPChannelRestartedTest extends BaseTest
+class AmqpChannelRestartedTest extends BaseTest
 {
     protected $master;
 

@@ -188,6 +188,41 @@ Amqp::disable();
 Amqp::enable();
 ```
 
+## Remote procedure call server and client
+
+RPC is potentially an anti-pattern in a microservices world so do not use it carelessly, nevertheless sometimes you just need that request-response behaviour and you're willing to accept its limitations. Simply return a response from within a consumer handler, if the message is a request from a client, the response will automatically be routed to the correct requestor. There are 2 configurable timeouts to prevent infinite-blocking waits.
+
+```request_accepted_timeout``` - time to wait for confirmation from server that a job is being worked on, this is a check if anybody is listening at all and should be quite small
+
+```request_handled_timeout``` - time to wait for the full request to be completed (all messages), be careful to ensure this is large enough if your job is long-lasting or if the number of messages to be handled is large
+
+### Server
+
+```php
+Amqp::consume(function ($message) {
+
+   Amqp::acknowledge($message);
+
+   return "I handled this message " . $message->getBody();
+
+});
+```
+
+### Client
+
+```php
+Amqp::request('example.routing.key', [
+
+    'message1',
+    'message2',
+
+], function ($message) {
+   
+   echo("The remote server said " . $message->getBody());
+
+});
+```
+
 ## Credits
 
 * Some concepts were used from https://github.com/bschmitt/laravel-amqp

@@ -96,6 +96,16 @@ class AmqpChannel
     }
 
     /**
+     * Returns current queue
+     *
+     * @return array
+     */
+    public function getQueue()
+    {
+        return $this->queue;
+    }
+
+    /**
      * Runs a closure on the channel and retries on failure
      *
      * @param Closure $callback
@@ -149,10 +159,22 @@ class AmqpChannel
             $object = $this;
             $channelCallback = function ($message) use ($object, $callback) {
                 if ($message->get('redelivered') === true && $object->redeliveryCheck($message)) {
-                    $object->redeliverySkip($message);
-                } else {
-                    $callback($message);
+                    // Skip processing this message since it's a duplicate
+                    return $object->redeliverySkip($message);
                 }
+                if ($message->has('reply_to') && $message->has('correlation_id')) {
+                    // Publish job is accepted message, to inform the requestor that it's being worked on
+                    $responseChannel = self::create(['exchange' => '']);
+                    $responseChannel->publish($message->get('reply_to'), new AMQPMessage('', [
+                        'correlation_id' => $message->get('correlation_id') . '_accepted',
+                    ]));
+                    // Publish response to the original job, using return value from handler
+                    return $responseChannel->publish($message->get('reply_to'), new AMQPMessage($callback($message), [
+                        'correlation_id' => $message->get('correlation_id') . '_handled',
+                    ]));
+                }
+                // Handle callback for the message, processing the job normally
+                $callback($message);
             };
 
             $this->channel->basic_consume(
@@ -164,7 +186,6 @@ class AmqpChannel
                 $this->properties['consumer_nowait'] ?? false,
                 $channelCallback,
             );
-
 
             // Add this callback to the stack if reconnection will occur
             if ($this->properties['persistent'] ?? false) {
@@ -202,6 +223,71 @@ class AmqpChannel
     }
 
     /**
+     * Publishes a message to the channel then waits for a response on a dedicated queue
+     *
+     * @param string $route
+     * @param array $message
+     * @param Closure $callback
+     * @return bool
+     */
+    public function request($route, $messages, $callback, $properties = [])
+    {
+        // If this queue is already consuming something we have to reset it to remove the existing callback
+        if ($this->channel->is_consuming()) {
+            $this->channel->basic_cancel('request-exclusive-listener');
+            $this->declareQueue();
+        }
+
+        // Publish all the messages
+        $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
+        foreach ($messages as $index => $message) {
+            // Tweak message to include reply-to to our exclusive queue
+            // we only need one correlation id for this entire request,
+            // together with index of each message we should be good
+            self::create($properties)->publish($route, new AMQPMessage($message, [
+                'reply_to' => $this->queue[0],
+                'correlation_id' => $requestId,
+            ]));
+        }
+
+        // Expect somebody is listening response within configured timeout
+        // Expect a handled job within configured timout
+        $startTime = microtime(true);
+        $startHandleTime = microtime(true);
+        $jobAccepted = false;
+        $jobsHandled = 0;
+
+        // We check the exclusive queue for messages, either confirming or handling the job
+        $this->channel->basic_consume(
+            $this->queue[0],
+            'request-exclusive-listener',
+            false,
+            true,
+            false,
+            false,
+            function ($message) use (&$jobAccepted, &$jobsHandled, $requestId, $callback) {
+                if ($message->get('correlation_id') === $requestId . '_accepted') {
+                    $jobAccepted = true;
+                }
+                if ($message->get('correlation_id') === $requestId . '_handled') {
+                    $jobsHandled++;
+                    $callback($message);
+                }
+            },
+        );
+
+        while (
+            ($this->properties['request_accepted_timeout'] > microtime(true) - $startTime || $jobAccepted)
+            && $this->properties['request_handled_timeout'] > microtime(true) - $startHandleTime && $jobsHandled < count($messages)
+        ) {
+            usleep(10);
+            $this->channel->wait(null, true);
+        }
+
+        return $jobsHandled == count($messages);
+    }
+
+    /**
      * Checks if the message is in any of the failed acknowledgement caches
      *
      * @param AMQPMessage $message
@@ -215,14 +301,9 @@ class AmqpChannel
             return true;
         }
 
-        if (! empty($this->lastReject)
+        return ! empty($this->lastReject)
             && $this->lastReject[0]->body === $message->body
-            && $this->lastReject[0]->get('routing_key') === $message->get('routing_key')
-        ) {
-            return true;
-        }
-
-        return false;
+            && $this->lastReject[0]->get('routing_key') === $message->get('routing_key');
     }
 
     /**
@@ -290,6 +371,21 @@ class AmqpChannel
         }
     }
 
+    public function disconnect()
+    {
+        try {
+            if (! empty($this->channel)) {
+                $this->channel->close();
+            }
+            if (! empty($this->connection)) {
+                $this->connection->close();
+            }
+        } catch (AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+            $this->channel = null;
+            $this->connection = null;
+        }
+    }
+
     /**
      * Establishes a connection to a broker and creates a channel
      */
@@ -329,36 +425,23 @@ class AmqpChannel
         $this->channel = $this->connection->channel();
     }
 
-    private function disconnect()
-    {
-        try {
-            if (! empty($this->channel)) {
-                $this->channel->close();
-            }
-            if (! empty($this->connection)) {
-                $this->connection->close();
-            }
-        } catch (AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-            $this->channel = null;
-            $this->connection = null;
-        }
-    }
-
     /**
      * Declares an exchange on the connection
      */
     private function declareExchange()
     {
-        $this->channel->exchange_declare(
-            $this->properties['exchange'],
-            $this->properties['exchange_type'] ?? 'topic',
-            $this->properties['exchange_passive'] ?? false,
-            $this->properties['exchange_durable'] ?? true,
-            $this->properties['exchange_auto_delete'] ?? false,
-            $this->properties['exchange_internal'] ?? false,
-            $this->properties['exchange_nowait'] ?? false,
-            $this->properties['exchange_properties'] ?? []
-        );
+        if (! empty($this->properties['exchange'])) {
+            $this->channel->exchange_declare(
+                $this->properties['exchange'],
+                $this->properties['exchange_type'] ?? 'topic',
+                $this->properties['exchange_passive'] ?? false,
+                $this->properties['exchange_durable'] ?? true,
+                $this->properties['exchange_auto_delete'] ?? false,
+                $this->properties['exchange_internal'] ?? false,
+                $this->properties['exchange_nowait'] ?? false,
+                $this->properties['exchange_properties'] ?? []
+            );
+        }
     }
 
     /**

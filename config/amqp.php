@@ -49,9 +49,11 @@ return [
             'consumer_no_ack'           => false,
             'consumer_exclusive'        => false,
             'consumer_nowait'           => false,
-            'timeout'                   => 0,
+            'timeout'                   => 0,        // seconds
             'persistent'                => false,
-            'persistent_restart_period' => 0,
+            'persistent_restart_period' => 0,        // seconds
+            'request_accepted_timeout'  => 0.5,      // seconds in decimal accepted
+            'request_handled_timeout'   => 5,        // seconds in decimal accepted
 
             'qos'                   => false,
             'qos_prefetch_size'     => 0,

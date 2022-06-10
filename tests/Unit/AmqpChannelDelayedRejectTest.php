@@ -11,7 +11,7 @@ use PhpAmqpLib\Message\AMQPMessage;
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
  */
-class AMQPChannelDelayedTest extends BaseTest
+class AmqpChannelDelayedRejectTest extends BaseTest
 {
     protected $master;
     protected $channel;
@@ -30,14 +30,14 @@ class AMQPChannelDelayedTest extends BaseTest
                 'username'              => 'guest',
                 'password'              => 'guest',
 
-                'queue' => 'delaytest',
+                'queue' => 'delaytestreject',
                 'exchange' => 'test',
                 'consumer_tag' => 'test',
                 'connect_options' => ['heartbeat' => 2],
                 'bindings' => [
                     [
-                        'queue'    => 'delaytest',
-                        'routing'  => 'example.route.delay',
+                        'queue'    => 'delaytestreject',
+                        'routing'  => 'example.route.delayreject',
                     ],
                 ],
                 'timeout' => 1,
@@ -59,7 +59,7 @@ class AMQPChannelDelayedTest extends BaseTest
     {
         $message1 = new AMQPMessage('Test message consume delayed');
 
-        $this->master->publish('example.route.delay', $message1);
+        $this->master->publish('example.route.delayreject', $message1);
 
         $object = $this;
         $master = $this->master;
@@ -68,17 +68,17 @@ class AMQPChannelDelayedTest extends BaseTest
         $this->master->consume(function ($consumedMessage) use ($message1, $object, $master) {
             $object->assertEquals($consumedMessage->body, $message1->body);
             sleep(5);
-            $master->acknowledge($consumedMessage);
+            $master->reject($consumedMessage);
         });
 
         $this->setUp();
 
         $message2 = new AMQPMessage('Test message 2');
-        $this->master->publish('example.route.delay', $message2);
+        $this->master->publish('example.route.delayreject', $message2);
 
         // The second consume should contain the expected second message
         $this->master->consume(function ($consumedMessage) use ($message2, $object, $master) {
-            $object->assertEquals($consumedMessage->body, $message2->body);
+            $object->assertEquals($message2->body, $consumedMessage->body);
             $master->acknowledge($consumedMessage);
         });
     }
