@@ -203,7 +203,7 @@ Amqp::consume(function ($message) {
 
    Amqp::acknowledge($message);
 
-   return "I handled this message " . $message->body;
+   return "I handled this message " . $message->getBody();
 
 });
 ```
