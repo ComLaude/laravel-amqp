@@ -30,3 +30,4 @@ before_script:
 script:
   - vendor/bin/phpunit
   - vendor/bin/tlint
+  - vendor/bin/php-formatter fix -v --dry-run
