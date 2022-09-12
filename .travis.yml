@@ -1,4 +1,6 @@
 # .travis.yml
+dist: bionic
+
 os: linux
 
 arch: arm64
