@@ -87,7 +87,7 @@ class Amqp
      */
     public function reject(AMQPMessage $message, $requeue = false, $properties = [])
     {
-        AmqpChannel::create($properties)->reject($message);
+        AmqpChannel::create($properties)->reject($message, $requeue);
     }
 
     /**
