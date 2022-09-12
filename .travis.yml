@@ -1,14 +1,12 @@
 # .travis.yml
-dist: xenial
-
-os: linux
-
-arch: arm64
-
 language: php
 
-php:
-  - 8.0
+jobs:
+  include:
+    - php: 7.4
+      dist: xenial
+    - php: 8.0
+      dist: focal
 
 services:
   - rabbitmq
