@@ -104,7 +104,7 @@ class Amqp
         // We override the queue away from default properties since we're going to
         // create an anonymous, exclusive queue to accept responses, we still permit
         // explicit overrides from the caller
-        AmqpChannel::create(array_merge([
+        return AmqpChannel::create(array_merge([
             'exchange' => '',
             'queue' => '',
             'queue_passive' => false,
