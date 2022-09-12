@@ -1,5 +1,5 @@
 # .travis.yml
-dist: xenial
+dist: trusty
 
 os: linux
 
@@ -8,6 +8,7 @@ arch: arm64
 language: php
 
 php:
+  - 7.0
   - 8.0
 
 services:
