@@ -17,7 +17,6 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class AmqpChannel
 {
-
     /**
      * Reference to all open channels, defaults to opening the
      * config based channel and route non-overriden requests through it

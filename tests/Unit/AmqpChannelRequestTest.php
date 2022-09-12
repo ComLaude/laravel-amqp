@@ -14,7 +14,7 @@ class AmqpChannelRequestTest extends BaseTest
 {
     protected static $mocks;
     protected static $usedProperties;
-    
+
     protected $master;
     protected $queue;
 
