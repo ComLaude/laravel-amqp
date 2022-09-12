@@ -1,17 +1,17 @@
 # .travis.yml
-dist: 
-  - bionic
-  - xenial
+
+jobs:
+  include:
+    - dist: bionic
+      php: 7.4
+    - dist: xenial
+      php: 8.1
 
 os: linux
 
 arch: arm64
 
 language: php
-
-php:
-  - 7.4
-  - 8.1
 
 services:
   - rabbitmq
@@ -26,7 +26,6 @@ cache:
     - vendor
 
 before_script:
-  # - composer self-update
   - composer install --no-interaction
   - pecl install pcov
 
