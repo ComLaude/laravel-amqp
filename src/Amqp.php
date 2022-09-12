@@ -45,14 +45,27 @@ class Amqp
      * @param string $route
      * @param mixed $message
      * @param array $properties
+     * @param array $messageProperties
      */
-    public function publish($route, $message, array $properties = [])
+    public function publish($route, $message, array $properties = [], array $messageProperties = [])
     {
         if (! $this->isEnabled()) {
             return;
         }
-        $message = new AMQPMessage($message);
+        $message = new AMQPMessage($message, $messageProperties);
         AmqpChannel::create($properties)->publish($route, $message);
+    }
+
+    /**
+     * Publishes a persistent message to the queue
+     *
+     * @param string $route
+     * @param mixed $message
+     * @param array $properties
+     */
+    public function publishPersistent($route, $message, array $properties = [])
+    {
+        return $this->publish($route, $message, $properties, ['delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT]);
     }
 
     /**
