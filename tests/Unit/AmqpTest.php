@@ -150,7 +150,7 @@ class AmqpTest extends BaseTest
             } else {
                 $this->assertEquals($messageBody, $message->getBody());
             }
-            $mockedFacade->reject($message, true, self::$usedProperties);
+            $mockedFacade->reject($message, false, self::$usedProperties);
             $counter++;
         }, self::$usedProperties);
 
@@ -191,7 +191,7 @@ class AmqpTest extends BaseTest
             } else {
                 $this->assertEquals($messageBody, $message->getBody());
             }
-            $mockedFacade->reject($message, true, self::$usedProperties);
+            $mockedFacade->reject($message, false, self::$usedProperties);
             $counter++;
         }, self::$usedProperties);
 

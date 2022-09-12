@@ -372,6 +372,9 @@ class AmqpChannel
 
     public function disconnect()
     {
+        if (! empty($this->properties['exchange']) && ! empty($this->properties['queue'])) {
+            unset(self::$channels[$this->properties['exchange'] . '.' . $this->properties['queue']]);
+        }
         try {
             if (! empty($this->channel)) {
                 $this->channel->close();
