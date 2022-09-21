@@ -37,6 +37,10 @@ class AmqpChannelRequestTest extends BaseTest
             'queue_exclusive' => true,
             'queue_auto_delete' => true,
             'queue_nowait' => false,
+            'queue_properties'      => [
+                'x-ha-policy' => ['S', 'all'],
+                'x-queue-type' => ['S', 'classic'],
+            ],
 
             'request_accepted_timeout'  => 0.5,      // seconds
             'request_handled_timeout'   => 1,       // seconds

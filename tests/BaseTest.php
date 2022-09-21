@@ -2,6 +2,7 @@
 
 namespace ComLaude\Amqp\Tests;
 
+use ComLaude\Amqp\AmqpChannel;
 use Mockery;
 use PHPUnit\Framework\TestCase;
 
@@ -18,5 +19,10 @@ class BaseTest extends TestCase
     public function tearDown(): void
     {
         Mockery::close();
+    }
+
+    public function deleteQueue($properties)
+    {
+        return AmqpChannel::create($properties)->getChannel()->queue_delete($properties['queue']);
     }
 }

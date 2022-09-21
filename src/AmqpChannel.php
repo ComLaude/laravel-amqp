@@ -280,7 +280,7 @@ class AmqpChannel
             && $this->properties['request_handled_timeout'] > microtime(true) - $startHandleTime && $jobsHandled < count($messages)
         ) {
             usleep(10);
-            $this->channel->wait(null, true);
+            $this->channel->wait(null, true, $this->properties['request_accepted_timeout']);
         }
 
         return $jobsHandled == count($messages);

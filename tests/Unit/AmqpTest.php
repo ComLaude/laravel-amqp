@@ -24,7 +24,6 @@ class AmqpTest extends BaseTest
             'username'              => 'guest',
             'password'              => 'guest',
 
-            'queue_auto_delete' => true,
             'exchange' => 'test',
             'consumer_tag' => 'test',
             'connect_options' => ['heartbeat' => 2],
@@ -58,6 +57,7 @@ class AmqpTest extends BaseTest
 
     public function tearDown(): void
     {
+        $this->deleteQueue(self::$usedProperties);
         if (! empty(self::$mocks)) {
             self::$mocks->disable();
             self::$mocks = null;
@@ -69,17 +69,20 @@ class AmqpTest extends BaseTest
         $messageBody = 'Test message publish and consume';
 
         $mockedFacade = new Amqp;
-        $mockedFacade->publish('example.route.facade', $messageBody);
-        $mockedFacade->publish('example.route.facade', $messageBody);
+        $messages = 5;
+        for ($i = 0; $i < $messages; $i++) {
+            $mockedFacade->publish('example.route.facade', $messageBody);
+        }
 
         $counter = 0;
+        for ($i = 0; $i < $messages; $i++) {
+            $mockedFacade->consume(function ($message) use ($messageBody, &$counter) {
+                $this->assertEquals($messageBody, $message->getBody());
+                $counter++;
+            });
+        }
 
-        $mockedFacade->consume(function ($message) use ($messageBody, &$counter) {
-            $this->assertEquals($messageBody, $message->getBody());
-            $counter++;
-        });
-
-        $this->assertEquals(2, $counter);
+        $this->assertEquals($messages, $counter);
     }
 
     public function testPublishConsumeAndAcknowledge()
@@ -215,7 +218,7 @@ class AmqpTest extends BaseTest
             'example.route',
             ['message1', 'message2'],
             fn ($message) => null,
-            []
+            ['queue_properties' => ['x-ha-policy' => ['S', 'all'], 'x-queue-type' => ['S', 'classic']]]
         );
         $doneTime = microtime(true) - $startTime;
         $this->assertGreaterThan(0.5, $doneTime);

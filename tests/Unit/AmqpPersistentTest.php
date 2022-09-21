@@ -25,7 +25,6 @@ class AmqpPersistentTest extends BaseTest
             'username'              => 'guest',
             'password'              => 'guest',
 
-            'queue_auto_delete' => true,
             'exchange' => 'test',
             'consumer_tag' => 'test',
             'connect_options' => ['heartbeat' => 2],
@@ -59,6 +58,7 @@ class AmqpPersistentTest extends BaseTest
 
     public function tearDown(): void
     {
+        $this->deleteQueue(self::$usedProperties);
         if (! empty(self::$mocks)) {
             self::$mocks->disable();
             self::$mocks = null;
@@ -70,17 +70,19 @@ class AmqpPersistentTest extends BaseTest
         $messageBody = 'Test message publish persistent and consume';
 
         $mockedFacade = new Amqp;
-        $mockedFacade->publishPersistent('example.route.facade.persistent', $messageBody);
-        $mockedFacade->publishPersistent('example.route.facade.persistent', $messageBody);
+        $messages = 5;
+        for ($i = 0; $i < $messages; $i++) {
+            $mockedFacade->publishPersistent('example.route.facade.persistent', $messageBody);
+        }
 
         $counter = 0;
-
-        $mockedFacade->consume(function ($message) use ($messageBody, &$counter) {
-            $this->assertEquals(AMQPMessage::DELIVERY_MODE_PERSISTENT, $message->get('delivery_mode'));
-            $this->assertEquals($messageBody, $message->getBody());
-            $counter++;
-        });
-
-        $this->assertEquals(2, $counter);
+        for ($i = 0; $i < $messages; $i++) {
+            $mockedFacade->consume(function ($message) use ($messageBody, &$counter) {
+                $this->assertEquals(AMQPMessage::DELIVERY_MODE_PERSISTENT, $message->get('delivery_mode'));
+                $this->assertEquals($messageBody, $message->getBody());
+                $counter++;
+            });
+        }
+        $this->assertEquals($messages, $counter);
     }
 }

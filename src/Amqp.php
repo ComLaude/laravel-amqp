@@ -125,6 +125,7 @@ class Amqp
             'queue_exclusive' => true,
             'queue_auto_delete' => true,
             'queue_nowait' => false,
+            'queue_properties' => ['x-ha-policy' => ['S', 'all'], 'x-queue-type' => 'classic'],
         ], $properties))->request(
             $route,
             is_array($messages) ? $messages : [$messages],
