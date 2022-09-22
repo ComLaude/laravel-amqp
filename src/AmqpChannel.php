@@ -458,7 +458,10 @@ class AmqpChannel
             $this->properties['queue_exclusive'] ?? false,
             $this->properties['queue_auto_delete'] ?? false,
             $this->properties['queue_nowait'] ?? false,
-            $this->properties['queue_properties'] ?? ['x-ha-policy' => ['S', 'all']]
+            $this->properties['queue_properties'] ?? [
+                'x-ha-policy' => ['S', 'all'],
+                'x-queue-type' => ['S', 'quorum'],
+            ]
         );
 
         if (! empty($this->properties['bindings'])) {
