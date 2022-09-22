@@ -218,7 +218,12 @@ class AmqpTest extends BaseTest
             'example.route',
             ['message1', 'message2'],
             fn ($message) => null,
-            ['queue_properties' => ['x-ha-policy' => ['S', 'all'], 'x-queue-type' => ['S', 'classic']]]
+            [
+                'queue_properties' => [
+                    'x-ha-policy' => ['S', 'all'],
+                    'x-queue-type' => ['S', 'classic'],
+                ],
+            ]
         );
         $doneTime = microtime(true) - $startTime;
         $this->assertGreaterThan(0.5, $doneTime);
