@@ -217,13 +217,7 @@ class AmqpTest extends BaseTest
         $mockedFacade->request(
             'example.route',
             ['message1', 'message2'],
-            fn ($message) => null,
-            [
-                'queue_properties' => [
-                    'x-ha-policy' => ['S', 'all'],
-                    'x-queue-type' => ['S', 'classic'],
-                ],
-            ]
+            fn ($message) => null
         );
         $doneTime = microtime(true) - $startTime;
         $this->assertGreaterThan(0.5, $doneTime);
