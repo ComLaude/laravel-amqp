@@ -38,9 +38,9 @@ return [
 
             'queue_force_declare'   => false,
             'queue_passive'         => false,
-            'queue_durable'         => true,
+            'queue_durable'         => true,          // only change when not using quorum queues
             'queue_exclusive'       => false,
-            'queue_auto_delete'     => false,         // only when not using quorum queues
+            'queue_auto_delete'     => false,         // only change when not using quorum queues
             'queue_nowait'          => false,
             'queue_properties'      => [
                 'x-ha-policy' => ['S', 'all'],

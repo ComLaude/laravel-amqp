@@ -493,7 +493,7 @@ class AmqpChannel
         $this->declareExchange();
         $this->declareQueue();
 
-        if (isset($this->properties['qos']) && $this->properties['qos'] === true) {
+        if (! isset($this->properties['qos']) || $this->properties['qos']) {
             $this->channel->basic_qos(
                 $this->properties['qos_prefetch_size'] ?? 0,
                 $this->properties['qos_prefetch_count'] ?? 1,
