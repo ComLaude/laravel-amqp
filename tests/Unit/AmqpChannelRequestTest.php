@@ -145,7 +145,9 @@ class AmqpChannelRequestTest extends BaseTest
         $this->master->request(
             'example.route',
             ['message1', 'message2'],
-            fn ($message) => null,
+            function ($message) {
+                return null;
+            },
             ['correlation_id' => $requestId]
         );
         $this->assertLessThan(0.52, microtime(true) - $startTime);
@@ -163,7 +165,9 @@ class AmqpChannelRequestTest extends BaseTest
         $this->master->request(
             'example.route',
             ['message1', 'message2'],
-            fn ($message) => null,
+            function ($message) {
+                return null;
+            },
             ['correlation_id' => $requestId]
         );
         $doneTime = microtime(true) - $startTime;

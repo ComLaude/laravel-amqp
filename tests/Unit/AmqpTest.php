@@ -217,7 +217,9 @@ class AmqpTest extends BaseTest
         $mockedFacade->request(
             'example.route',
             ['message1', 'message2'],
-            fn ($message) => null
+            function ($message) {
+                return null;
+            }
         );
         $doneTime = microtime(true) - $startTime;
         $this->assertGreaterThan(0.5, $doneTime);

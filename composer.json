@@ -30,7 +30,7 @@
     "illuminate/support": ">=v5.5.28",
     "tightenco/tlint": "^6.0",
     "php-mock/php-mock-phpunit": "^2.6",
-    "comlaude/php-formatter": "^1.0"
+    "comlaude/php-formatter": "1.0.1"
   },
   "autoload": {
     "psr-4": {
