@@ -124,7 +124,7 @@ class AmqpChannel
                 if (--$this->retry < 0) {
                     throw $e;
                 }
-                $this->reconnect();
+                $this->reconnect('-publish-retry' . $this->retry);
             }
         }
     }
@@ -214,7 +214,7 @@ class AmqpChannel
         } while (count($this->channel->callbacks) || $this->properties['persistent'] ?? false);
 
         if ($restart) {
-            $this->reconnect();
+            $this->reconnect('-restarted');
             return $this->consume($callback, $tag, false);
         }
 
@@ -352,7 +352,7 @@ class AmqpChannel
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             // We cache the acknowledge just in case it is redelivered
             $this->lastAcknowledge[] = $message;
-            $this->reconnect();
+            $this->reconnect('-ack-restarted');
         }
     }
 
@@ -368,7 +368,7 @@ class AmqpChannel
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             // che the reject just in case it is redelivered
             $this->lastReject[] = [$message, $requeue];
-            $this->reconnect();
+            $this->reconnect('-rej-restarted');
         }
     }
 
@@ -483,7 +483,7 @@ class AmqpChannel
      * Closes the connection and reestablishes a valid channel
      * Also re-initiates any consumer callbacks
      */
-    private function reconnect()
+    private function reconnect($reason)
     {
         try {
             $this->disconnect();
@@ -508,7 +508,7 @@ class AmqpChannel
             foreach ($this->callbacks as $consumerCallback) {
                 $this->channel->basic_consume(
                     $this->properties['queue'],
-                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . uniqid() . '-retry' . $this->retry,
+                    ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . uniqid() . $reason,
                     $this->properties['consumer_no_local'] ?? false,
                     $this->properties['consumer_no_ack'] ?? false,
                     $this->properties['consumer_exclusive'] ?? false,
