@@ -31,7 +31,6 @@ class AmqpChannelTest extends BaseTest
                 'password'              => 'guest',
 
                 'queue' => 'test',
-                'queue_auto_delete' => true,
                 'exchange' => 'test',
                 'consumer_tag' => 'test',
                 'connect_options' => ['heartbeat' => 2],
@@ -60,7 +59,6 @@ class AmqpChannelTest extends BaseTest
             'password'              => 'guest',
 
             'queue' => 'test',
-            'queue_auto_delete' => true,
             'exchange' => 'test',
             'consumer_tag' => 'test',
             'connect_options' => ['heartbeat' => 2],

@@ -147,7 +147,7 @@ class AmqpChannel
             $tag = uniqid();
         }
 
-        if (isset($this->properties['qos']) && $this->properties['qos'] === true) {
+        if (! isset($this->properties['qos']) || $this->properties['qos']) {
             $this->channel->basic_qos(
                 $this->properties['qos_prefetch_size'] ?? 0,
                 $this->properties['qos_prefetch_count'] ?? 1,
@@ -456,7 +456,10 @@ class AmqpChannel
             $this->properties['queue_exclusive'] ?? false,
             $this->properties['queue_auto_delete'] ?? false,
             $this->properties['queue_nowait'] ?? false,
-            $this->properties['queue_properties'] ?? ['x-ha-policy' => ['S', 'all']]
+            $this->properties['queue_properties'] ?? [
+                'x-ha-policy' => ['S', 'all'],
+                'x-queue-type' => ['S', 'quorum'],
+            ]
         );
 
         if (! empty($this->properties['bindings'])) {
@@ -488,7 +491,7 @@ class AmqpChannel
         $this->declareExchange();
         $this->declareQueue();
 
-        if (isset($this->properties['qos']) && $this->properties['qos'] === true) {
+        if (! isset($this->properties['qos']) || $this->properties['qos']) {
             $this->channel->basic_qos(
                 $this->properties['qos_prefetch_size'] ?? 0,
                 $this->properties['qos_prefetch_count'] ?? 1,

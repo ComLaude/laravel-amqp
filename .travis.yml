@@ -1,14 +1,14 @@
 # .travis.yml
-dist: xenial
-
-os: linux
-
-arch: arm64
-
 language: php
 
-php:
-  - 8.0
+jobs:
+  include:
+    - php: 7.3
+      dist: xenial
+    - php: 7.4
+      dist: xenial
+    - php: 8.0
+      dist: focal
 
 services:
   - rabbitmq
@@ -23,10 +23,10 @@ cache:
     - vendor
 
 before_script:
-  - composer self-update
   - composer install --no-interaction
   - pecl install pcov
 
 script:
   - vendor/bin/phpunit
   - vendor/bin/tlint
+  - vendor/bin/php-formatter fix -v --dry-run

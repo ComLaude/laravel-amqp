@@ -26,7 +26,6 @@ class AmqpChannelRestartedTest extends BaseTest
             'password'              => 'guest',
 
             'queue' => 'restarttest',
-            'queue_auto_delete' => true,
             'exchange' => 'test',
             'consumer_tag' => 'test',
             'connect_options' => ['heartbeat' => 60],

@@ -14,7 +14,7 @@ class AmqpChannelRequestTest extends BaseTest
 {
     protected static $mocks;
     protected static $usedProperties;
-    
+
     protected $master;
     protected $queue;
 
@@ -37,6 +37,10 @@ class AmqpChannelRequestTest extends BaseTest
             'queue_exclusive' => true,
             'queue_auto_delete' => true,
             'queue_nowait' => false,
+            'queue_properties'      => [
+                'x-ha-policy' => ['S', 'all'],
+                'x-queue-type' => ['S', 'classic'],
+            ],
 
             'request_accepted_timeout'  => 0.5,      // seconds
             'request_handled_timeout'   => 1,       // seconds
@@ -141,10 +145,12 @@ class AmqpChannelRequestTest extends BaseTest
         $this->master->request(
             'example.route',
             ['message1', 'message2'],
-            fn ($message) => null,
+            function ($message) {
+                return null;
+            },
             ['correlation_id' => $requestId]
         );
-        $this->assertLessThan(0.51, microtime(true) - $startTime);
+        $this->assertLessThan(0.52, microtime(true) - $startTime);
     }
 
     public function testRequestNotHandledTimeout()
@@ -159,7 +165,9 @@ class AmqpChannelRequestTest extends BaseTest
         $this->master->request(
             'example.route',
             ['message1', 'message2'],
-            fn ($message) => null,
+            function ($message) {
+                return null;
+            },
             ['correlation_id' => $requestId]
         );
         $doneTime = microtime(true) - $startTime;
