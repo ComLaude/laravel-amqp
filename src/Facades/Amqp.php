@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Facade;
  */
 class Amqp extends Facade
 {
-
     /**
      * @return string
      */

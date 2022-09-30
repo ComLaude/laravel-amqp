@@ -10,7 +10,6 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class Amqp
 {
-
     /**
      * Flag for globally disabling message publishing
      */

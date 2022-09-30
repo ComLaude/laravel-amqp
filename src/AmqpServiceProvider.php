@@ -11,7 +11,6 @@ use Illuminate\Support\ServiceProvider;
  */
 class AmqpServiceProvider extends ServiceProvider
 {
-
     /**
      * Indicates if loading of the provider is deferred.
      *

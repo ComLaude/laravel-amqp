@@ -11,7 +11,6 @@ use Illuminate\Support\ServiceProvider;
  */
 class LumenServiceProvider extends ServiceProvider
 {
-
     /**
      * Perform post-registration booting of services.
      *
