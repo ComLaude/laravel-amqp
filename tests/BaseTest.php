@@ -9,8 +9,9 @@ use PHPUnit\Framework\TestCase;
 
 class BaseTest extends TestCase
 {
-    protected $properties;
     protected static $mocks;
+    
+    protected $properties;
 
     public function setUp(): void
     {
