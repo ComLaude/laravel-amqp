@@ -5,7 +5,6 @@ namespace ComLaude\Amqp\Tests\Unit;
 use ComLaude\Amqp\AmqpChannel;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Message\AMQPMessage;
-use phpmock\MockBuilder;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
@@ -22,14 +21,7 @@ class AmqpChannelRequestTest extends BaseTest
     {
         parent::setUp();
 
-        $usedProperties = array_merge($this->properties, [
-
-            // Travis defaults here
-            'host'                  => 'localhost',
-            'port'                  =>  5672,
-            'username'              => 'guest',
-            'password'              => 'guest',
-
+        $this->properties = array_merge($this->properties, [
             // Request defaults here, if they match we will be able to pre-populate the queue with test responses
             'queue' => 'amq-gen-fixed',
             'queue_passive' => false,
@@ -46,48 +38,23 @@ class AmqpChannelRequestTest extends BaseTest
             'request_handled_timeout'   => 1,       // seconds
 
             'exchange' => '',
-            'consumer_tag' => 'test',
+            'consumer_tag' => 'request-exclusive-listener',
             'connect_options' => ['heartbeat' => 2],
             'bindings' => [
                 [
-                    'queue'    => 'test',
+                    'queue'    => 'test_requests',
                     'routing'  => 'example.route.key',
                 ],
             ],
             'timeout' => 1,
         ]);
-        self::$usedProperties = $usedProperties;
 
-        if (empty(self::$mocks)) {
-            $builder = new MockBuilder();
-            $builder->setNamespace('ComLaude\\Amqp')
-                ->setName('config')
-                ->setFunction(
-                    function ($string) use ($usedProperties) {
-                        if ($string === 'amqp.use') {
-                            return '';
-                        }
-                        return $usedProperties;
-                    }
-                );
-            self::$mocks = $builder->build();
-            self::$mocks->enable();
-        }
-
-        if (empty($this->master)) {
-            $this->master = AmqpChannel::create(array_merge($this->properties, $usedProperties), ['mock-base' => true, 'persistent' => false]);
-            $this->queue = $this->master->getQueue();
-        }
+        $this->master = AmqpChannel::create($this->properties)->declareQueue();
+        $this->queue = $this->master->getQueue();
     }
 
     public function tearDown(): void
     {
-        $this->master->disconnect();
-        $this->master = null;
-        if (! empty(self::$mocks)) {
-            self::$mocks->disable();
-            self::$mocks = null;
-        }
         parent::tearDown();
     }
 

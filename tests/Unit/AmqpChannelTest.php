@@ -21,46 +21,8 @@ class AmqpChannelTest extends BaseTest
     {
         parent::setUp();
 
-        if (empty($this->master)) {
-            $this->master = AmqpChannel::create(array_merge($this->properties, [
-
-                // Travis defaults here
-                'host'                  => 'localhost',
-                'port'                  =>  5672,
-                'username'              => 'guest',
-                'password'              => 'guest',
-
-                'queue' => 'test',
-                'exchange' => 'test',
-                'consumer_tag' => 'test',
-                'connect_options' => ['heartbeat' => 2],
-                'bindings' => [
-                    [
-                        'queue'    => 'test',
-                        'routing'  => 'example.route.key',
-                    ],
-                ],
-                'timeout' => 1,
-            ]), ['mock-base' => true, 'persistent' => false]);
-
-            $this->channel = $this->master->getChannel();
-            $this->connection = $this->master->getConnection();
-        }
-    }
-
-    public function testCreateAmqpChannel()
-    {
-        $this->master = AmqpChannel::create(array_merge($this->properties, [
-
-            // Travis defaults here
-            'host'                  => 'localhost',
-            'port'                  =>  5672,
-            'username'              => 'guest',
-            'password'              => 'guest',
-
+        $this->properties = array_merge($this->properties, [
             'queue' => 'test',
-            'exchange' => 'test',
-            'consumer_tag' => 'test',
             'connect_options' => ['heartbeat' => 2],
             'bindings' => [
                 [
@@ -69,7 +31,22 @@ class AmqpChannelTest extends BaseTest
                 ],
             ],
             'timeout' => 1,
-        ]), ['mock-base' => true, 'persistent' => false]);
+        ]);
+
+        $this->master = AmqpChannel::create($this->properties);
+        $this->channel = $this->master->getChannel();
+        $this->connection = $this->master->getConnection();
+    }
+
+    public function tearDown(): void
+    {
+        $this->deleteEverything($this->properties);
+        parent::tearDown();
+    }
+
+    public function testCreateAmqpChannel()
+    {
+        $this->master = AmqpChannel::create($this->properties);
 
         $this->channel = $this->master->getChannel();
         $this->connection = $this->master->getConnection();
@@ -87,11 +64,12 @@ class AmqpChannelTest extends BaseTest
 
         $result = $this->master->publish('empty.target', $message);
 
-        $this->assertNull($result);
+        $this->assertInstanceOf(AmqpChannel::class, $result);
     }
 
     public function testPublishToChannelAndConsumeThenAcknowledge()
     {
+        $this->createQueue($this->properties);
         $message = new AMQPMessage('Test message publish and consume');
 
         $this->master->publish('example.route.key', $message);
@@ -107,6 +85,7 @@ class AmqpChannelTest extends BaseTest
 
     public function testPublishToChannelAndConsumeThenReject()
     {
+        $this->createQueue($this->properties);
         $message = new AMQPMessage('Test message publish and consume');
 
         $this->master->publish('example.route.key', $message);

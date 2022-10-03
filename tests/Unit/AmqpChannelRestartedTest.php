@@ -17,54 +17,60 @@ class AmqpChannelRestartedTest extends BaseTest
     {
         parent::setUp();
 
-        $this->master = AmqpChannel::create(array_merge($this->properties, [
-
-            // Travis defaults here
-            'host'                  => 'localhost',
-            'port'                  =>  5672,
-            'username'              => 'guest',
-            'password'              => 'guest',
-
-            'queue' => 'restarttest',
-            'exchange' => 'test',
-            'consumer_tag' => 'test',
+        $this->properties = array_merge($this->properties, [
+            'queue' => 'test_amqp_channel_persistent_restart',
             'connect_options' => ['heartbeat' => 60],
             'bindings' => [
                 [
-                    'queue'    => 'restarttest',
+                    'queue'    => 'test_amqp_channel_persistent_restart',
                     'routing'  => 'example.route.restart',
                 ],
             ],
             'timeout' => 1,
             'persistent_restart_period' => 1,
-            'qos' => true,
-            'qos_prefetch_count' => 5,
-        ]), ['mock-base' => true, 'persistent' => false]);
+        ]);
+        $this->master = AmqpChannel::create($this->properties);
+    }
+
+    public function tearDown(): void
+    {
+        $this->deleteEverything($this->properties);
+        parent::tearDown();
     }
 
     public function testPublishToChannelAndConsumeGetsConnectionRestarted()
     {
-        $message1 = new AMQPMessage('Test message consume delayed1');
+        $this->createQueue($this->properties);
 
-        $this->master->publish('example.route.restart', $message1);
+        $messages = [
+            new AMQPMessage('Test message consume delayed1'),
+            new AMQPMessage('Test message 2'),
+        ];
 
-        $object = $this;
-        $master = $this->master;
+        $this->master->publish('example.route.restart', $messages[0]);
+        $this->master->publish('example.route.restart', $messages[1]);
 
-        // This will trigger the restart
-        $this->master->consume(function ($consumedMessage) use ($message1, $object, $master) {
-            $object->assertEquals($consumedMessage->body, $message1->body);
+        $counter = 0;
+
+        // This will trigger the restart, but should process both messages just fine
+        $this->master->consume(function ($consumedMessage) use ($messages, &$counter) {
+            $this->assertEquals($consumedMessage->body, $messages[$counter]->body);
             sleep(3);
-            $master->acknowledge($consumedMessage);
+            $this->master->acknowledge($consumedMessage);
+            $counter++;
         });
 
-        $message2 = new AMQPMessage('Test message 3');
-        $this->master->publish('example.route.restart', $message2);
+        $this->assertEquals(2, $counter);
 
-        // The second consume should contain the expected second message
-        $this->master->consume(function ($consumedMessage) use ($message2, $object, $master) {
-            $object->assertEquals($consumedMessage->body, $message2->body);
-            $master->acknowledge($consumedMessage);
-        });
+        // After above is all done, let's do 2 more messages, each of them restarting the consumer
+        $this->master->publish('example.route.restart', $messages[0]);
+        $this->master->publish('example.route.restart', $messages[1]);
+
+        $counter = 0;
+
+        $this->master->getChannel()->wait(null, false);
+        $this->master->getChannel()->wait(null, false);
+
+        $this->assertEquals(2, $counter);
     }
 }

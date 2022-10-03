@@ -5,28 +5,19 @@ namespace ComLaude\Amqp\Tests\Unit;
 use ComLaude\Amqp\Amqp;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Message\AMQPMessage;
-use phpmock\MockBuilder;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
  */
 class AmqpPersistentTest extends BaseTest
 {
-    protected static $mocks;
     protected static $usedProperties;
 
     public function setUp(): void
     {
         parent::setUp();
 
-        $usedProperties = array_merge($this->properties, [
-            'host'                  => 'localhost',
-            'port'                  =>  5672,
-            'username'              => 'guest',
-            'password'              => 'guest',
-
-            'exchange' => 'test',
-            'consumer_tag' => 'test',
+        $this->properties = array_merge($this->properties, [
             'connect_options' => ['heartbeat' => 2],
             'queue' => 'test_amqp_facade_persistent',
             'bindings' => [
@@ -37,36 +28,17 @@ class AmqpPersistentTest extends BaseTest
             ],
             'timeout' => 1,
         ]);
-        self::$usedProperties = $usedProperties;
-
-        if (empty(self::$mocks)) {
-            $builder = new MockBuilder();
-            $builder->setNamespace('ComLaude\\Amqp')
-                ->setName('config')
-                ->setFunction(
-                    function ($string) use ($usedProperties) {
-                        if ($string === 'amqp.use') {
-                            return '';
-                        }
-                        return $usedProperties;
-                    }
-                );
-            self::$mocks = $builder->build();
-            self::$mocks->enable();
-        }
     }
 
     public function tearDown(): void
     {
-        $this->deleteQueue(self::$usedProperties);
-        if (! empty(self::$mocks)) {
-            self::$mocks->disable();
-            self::$mocks = null;
-        }
+        $this->deleteEverything($this->properties);
+        parent::tearDown();
     }
 
     public function testPublishPersistentAndConsume()
     {
+        $this->createQueue($this->properties);
         $messageBody = 'Test message publish persistent and consume';
 
         $mockedFacade = new Amqp;
@@ -76,13 +48,44 @@ class AmqpPersistentTest extends BaseTest
         }
 
         $counter = 0;
-        for ($i = 0; $i < $messages; $i++) {
-            $mockedFacade->consume(function ($message) use ($messageBody, &$counter) {
-                $this->assertEquals(AMQPMessage::DELIVERY_MODE_PERSISTENT, $message->get('delivery_mode'));
-                $this->assertEquals($messageBody, $message->getBody());
-                $counter++;
-            });
+
+        $mockedFacade->consume(function ($message) use ($messageBody, $mockedFacade, &$counter) {
+            $this->assertEquals(AMQPMessage::DELIVERY_MODE_PERSISTENT, $message->get('delivery_mode'));
+            $this->assertEquals($messageBody, $message->getBody());
+            $mockedFacade->acknowledge($message);
+            $counter++;
+        });
+
+        for ($i = 0; $i < $messages - 1; $i++) {
+            $this->consumeNextMessage($this->properties);
         }
         $this->assertEquals($messages, $counter);
+    }
+
+    public function testPublishPersistentWhenDisabledAndConsume()
+    {
+        $this->createQueue($this->properties);
+        $messageBody = 'Test message publish persistent and consume';
+
+        $mockedFacade = new Amqp;
+        $mockedFacade->disable();
+        $messages = 5;
+        for ($i = 0; $i < $messages; $i++) {
+            $mockedFacade->publishPersistent('example.route.facade.persistent', $messageBody);
+        }
+        $mockedFacade->enable();
+        $mockedFacade->publishPersistent('example.route.facade.persistent', $messageBody);
+
+        $counter = 0;
+
+        $mockedFacade->consume(function ($message) use ($messageBody, $mockedFacade, &$counter) {
+            $this->assertEquals(AMQPMessage::DELIVERY_MODE_PERSISTENT, $message->get('delivery_mode'));
+            $this->assertEquals($messageBody, $message->getBody());
+            $mockedFacade->acknowledge($message);
+            $counter++;
+        });
+
+        $this->consumeNextMessage($this->properties);
+        $this->assertEquals(1, $counter);
     }
 }

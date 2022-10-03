@@ -53,7 +53,9 @@ class Amqp
             return;
         }
         $message = new AMQPMessage($message, $messageProperties);
-        AmqpChannel::create($properties)->publish($route, $message);
+        AmqpChannel::create(array_merge($properties, [
+            'queue' => uniqid() . '-publisher',
+        ]))->publish($route, $message)->disconnect();
     }
 
     /**
@@ -65,6 +67,9 @@ class Amqp
      */
     public function publishPersistent($route, $message, array $properties = [])
     {
+        if (! $this->isEnabled()) {
+            return;
+        }
         return $this->publish($route, $message, $properties, ['delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT]);
     }
 

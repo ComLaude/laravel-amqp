@@ -21,31 +21,27 @@ class AmqpChannelDelayedRejectTest extends BaseTest
     {
         parent::setUp();
 
-        if (empty($this->master)) {
-            $this->master = AmqpChannel::create(array_merge($this->properties, [
-
-                // Travis defaults here
-                'host'                  => 'localhost',
-                'port'                  =>  5672,
-                'username'              => 'guest',
-                'password'              => 'guest',
-
-                'queue' => 'delaytestreject',
-                'exchange' => 'test',
-                'consumer_tag' => 'test',
-                'connect_options' => ['heartbeat' => 2],
-                'bindings' => [
-                    [
-                        'queue'    => 'delaytestreject',
-                        'routing'  => 'example.route.delayreject',
-                    ],
+        $this->properties = array_merge($this->properties, [
+            'queue' => 'test_delay_reject',
+            'connect_options' => ['heartbeat' => 2],
+            'bindings' => [
+                [
+                    'queue'    => 'test_delay_reject',
+                    'routing'  => 'example.route.delay_reject',
                 ],
-                'timeout' => 1,
-            ]), ['mock-base' => true, 'persistent' => true]);
+            ],
+            'timeout' => 1,
+        ]);
 
-            $this->channel = $this->master->getChannel();
-            $this->connection = $this->master->getConnection();
-        }
+        $this->master = AmqpChannel::create($this->properties);
+        $this->channel = $this->master->getChannel();
+        $this->connection = $this->master->getConnection();
+    }
+
+    public function tearDown(): void
+    {
+        $this->deleteEverything($this->properties);
+        parent::tearDown();
     }
 
     public function testCreateAmqpChannel()
@@ -57,29 +53,27 @@ class AmqpChannelDelayedRejectTest extends BaseTest
 
     public function testPublishToChannelAndConsumeDelayed()
     {
-        $message1 = new AMQPMessage('Test message consume delayed');
+        $this->createQueue($this->properties);
+        $messages = [
+            new AMQPMessage('Test message consume delayed1'),
+            new AMQPMessage('Test message 2'),
+        ];
 
-        $this->master->publish('example.route.delayreject', $message1);
+        $this->master->publish('example.route.delay_reject', $messages[0]);
+        $this->master->publish('example.route.delay_reject', $messages[1]);
 
-        $object = $this;
-        $master = $this->master;
+        $counter = 0;
 
         // This will hit a heartbeat missed exception but recover from it
-        $this->master->consume(function ($consumedMessage) use ($message1, $object, $master) {
-            $object->assertEquals($consumedMessage->body, $message1->body);
-            sleep(5);
-            $master->reject($consumedMessage);
+        $this->master->consume(function ($consumedMessage) use ($messages, &$counter) {
+            $this->assertEquals($consumedMessage->body, $messages[$counter++]->body);
+            sleep(6);
+            $this->master->reject($consumedMessage);
         });
-
-        $this->setUp();
-
-        $message2 = new AMQPMessage('Test message 2');
-        $this->master->publish('example.route.delayreject', $message2);
 
         // The second consume should contain the expected second message
-        $this->master->consume(function ($consumedMessage) use ($message2, $object, $master) {
-            $object->assertEquals($message2->body, $consumedMessage->body);
-            $master->acknowledge($consumedMessage);
-        });
+        $this->consumeNextMessage($this->properties);
+        $this->master->getChannel()->wait(null, true);
+        $this->assertEquals(2, $counter);
     }
 }
