@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * @author David Krizanic <david.krizanic@comlaude.com>
+ */
+
 return [
 
     /*

@@ -15,7 +15,7 @@ use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
- * @author David krizanic <david.krizanic@comlaude.com>
+ * @author David Krizanic <david.krizanic@comlaude.com>
  */
 class AmqpChannel
 {

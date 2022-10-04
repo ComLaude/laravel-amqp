@@ -5,7 +5,7 @@ namespace ComLaude\Amqp\Facades;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @author David krizanic <david.krizanic@comlaude.com>
+ * @author David Krizanic <david.krizanic@comlaude.com>
  * @see ComLaude\Amqp\Amqp
  */
 class Amqp extends Facade

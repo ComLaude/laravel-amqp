@@ -7,7 +7,7 @@ use Illuminate\Support\ServiceProvider;
 /**
  * Laravel service provider
  *
- * @author David krizanic <david.krizanic@comlaude.com>
+ * @author David Krizanic <david.krizanic@comlaude.com>
  */
 class AmqpServiceProvider extends ServiceProvider
 {

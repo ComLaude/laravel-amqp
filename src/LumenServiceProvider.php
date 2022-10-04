@@ -7,7 +7,7 @@ use Illuminate\Support\ServiceProvider;
 /**
  * Lumen service provider
  *
- * @author David krizanic <david.krizanic@comlaude.com>
+ * @author David Krizanic <david.krizanic@comlaude.com>
  */
 class LumenServiceProvider extends ServiceProvider
 {

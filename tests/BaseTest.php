@@ -7,6 +7,9 @@ use Mockery;
 use phpmock\MockBuilder;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * @author David Krizanic <david.krizanic@comlaude.com>
+ */
 class BaseTest extends TestCase
 {
     protected static $mocks;
