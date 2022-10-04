@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 class BaseTest extends TestCase
 {
     protected static $mocks;
-    
+
     protected $properties;
 
     public function setUp(): void
