@@ -3,7 +3,6 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\AmqpChannel;
-use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Channel\AMQPChannel as AMQPChannelBase;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
@@ -73,7 +72,6 @@ class AmqpChannelTest extends BaseTest
         $message = new AMQPMessage('Test empty.target message');
 
         sleep(6);
-        $this->expectException(AmqpChannelSilentlyRestartedException::class);
         $result = $this->master->publish('empty.target', $message);
 
         $this->assertInstanceOf(AmqpChannel::class, $result);

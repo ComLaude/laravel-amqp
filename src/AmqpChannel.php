@@ -108,7 +108,8 @@ class AmqpChannel
     /**
      * Runs a closure on the channel and retries on failure
      *
-     * @param Closure $callback
+     * @param string $route
+     * @param AMQPMessage $message
      */
     public function publish($route, $message)
     {
@@ -126,7 +127,7 @@ class AmqpChannel
                 if (--$this->retry < 0) {
                     throw $e;
                 }
-                $this->reconnect();
+                $this->reconnect(true);
             }
         }
 
@@ -200,11 +201,7 @@ class AmqpChannel
         }
 
         if ($restart) {
-            try {
-                $this->reconnect();
-            } catch (AmqpChannelSilentlyRestartedException $e) {
-                // This is expected but does not need special handling in this case
-            }
+            $this->reconnect(true);
             return $this->consume($callback);
         }
 
@@ -458,8 +455,9 @@ class AmqpChannel
 
     /**
      * Closes the connection and reestablishes a valid channel
+     * @param boolean $intentionalReconnection
      */
-    public function reconnect()
+    public function reconnect($intentionalReconnection = false)
     {
         try {
             if ($this->channel->is_consuming()) {
@@ -472,6 +470,8 @@ class AmqpChannel
 
         $this->connect();
         $this->declareExchange();
-        throw new AmqpChannelSilentlyRestartedException;
+        if (! $intentionalReconnection) {
+            throw new AmqpChannelSilentlyRestartedException;
+        }
     }
 }
