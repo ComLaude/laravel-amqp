@@ -65,12 +65,13 @@ class AmqpChannelDelaysDisabledRejectTest extends BaseTest
                 $this->master->reject($consumedMessage);
             }
             $actuallyCompleted++;
+            $this->master->reject($consumedMessage);
         });
 
         $this->consumeNextMessage($this->properties);
 
         // If we processed the first message at least twice it means the same message looped through the consumer
-        $this->assertEquals(1, $actuallyCompleted);
-        $this->assertEquals(2, $counter);
+        $this->assertEquals(2, $actuallyCompleted);
+        $this->assertEquals(3, $counter);
     }
 }
