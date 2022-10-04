@@ -50,6 +50,8 @@ return [
                 'x-ha-policy' => ['S', 'all'],
                 'x-queue-type' => ['S', 'quorum'],
             ],
+            'queue_acknowledge_is_final' => true,     // if important work is done inside a consumer after the acknowledge call, this should be false
+            'queue_reject_is_final'      => true,     // if important work is done inside a consumer after the reject call, this should be false
 
             'consumer_tag'              => '',
             'consumer_no_local'         => false,

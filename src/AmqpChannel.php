@@ -318,8 +318,10 @@ class AmqpChannel
                 $this->channel->basic_cancel($message->delivery_info['consumer_tag']);
             }
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-            // We cache the acknowledge just in case it is redelivered
-            $this->lastAcknowledge[] = $message;
+            if ($this->properties['queue_acknowledge_is_final'] ?? true) {
+                // We cache the acknowledge just in case it is redelivered
+                $this->lastAcknowledge[] = $message;
+            }
             $this->reconnect();
         }
     }
@@ -334,8 +336,10 @@ class AmqpChannel
         try {
             $this->channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-            // che the reject just in case it is redelivered
-            $this->lastReject[] = [$message, $requeue];
+            if ($this->properties['queue_reject_is_final'] ?? true) {
+                // We cache the reject just in case it is redelivered
+                $this->lastReject[] = [$message, $requeue];
+            }
             $this->reconnect();
         }
     }
