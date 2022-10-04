@@ -41,7 +41,8 @@ class AmqpChannelSslConnectionTest extends BaseTest
     {
         // We cannot safely simulate SSL connections inside travis, so we'll just make sure it attempts to use the correct protocol for the connection
         $this->expectException(AMQPIOException::class);
-        $this->expectExceptionMessage('stream_socket_client(): unable to connect to ssl://localhost:5672 (Unknown error)');
+        $this->expectExceptionMessage('stream_socket_client()');
+        $this->expectExceptionMessage('able to connect to ssl://localhost:5672');
         $this->master = AmqpChannel::create($this->properties);
     }
 }
