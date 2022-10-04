@@ -3,6 +3,7 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Channel\AMQPChannel as AMQPChannelBase;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
@@ -67,6 +68,17 @@ class AmqpChannelTest extends BaseTest
         $this->assertInstanceOf(AmqpChannel::class, $result);
     }
 
+    public function testPublishToDisconnectedChannel()
+    {
+        $message = new AMQPMessage('Test empty.target message');
+
+        sleep(6);
+        $this->expectException(AmqpChannelSilentlyRestartedException::class);
+        $result = $this->master->publish('empty.target', $message);
+
+        $this->assertInstanceOf(AmqpChannel::class, $result);
+    }
+
     public function testPublishToChannelAndConsumeThenAcknowledge()
     {
         $this->createQueue($this->properties);
@@ -97,5 +109,27 @@ class AmqpChannelTest extends BaseTest
             $object->assertEquals($consumedMessage->body, $message->body);
             $master->reject($consumedMessage);
         });
+    }
+
+    public function testConsumeOnEmptyQueue()
+    {
+        $this->createQueue($this->properties);
+        $count = 0;
+        $return = $this->master->consume(function ($consumedMessage) use (&$count) {
+            $count++;
+        });
+
+        $this->assertTrue($return);
+        $this->assertEquals(0, $count);
+    }
+
+    public function testDisconnectOnDisconnectedChannel()
+    {
+        $this->createQueue($this->properties);
+
+        sleep(6);
+        $this->master->disconnect();
+
+        $this->assertNull($this->master->getChannel());
     }
 }

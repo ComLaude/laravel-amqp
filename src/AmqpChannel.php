@@ -121,7 +121,7 @@ class AmqpChannel
             try {
                 // Fire the basic command and return the result to the caller
                 $this->channel->basic_publish($message, $this->properties['exchange'], $route);
-                return $this;
+                break;
             } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
                 if (--$this->retry < 0) {
                     throw $e;
@@ -142,10 +142,7 @@ class AmqpChannel
      */
     public function consume(Closure $callback)
     {
-        $this->queue = $this->declareQueue();
-        if ((! isset($this->properties['persistent']) || $this->properties['persistent'] == false) && is_array($this->queue) && $this->queue[1] == 0) {
-            return true;
-        }
+        $this->declareQueue();
 
         if (! isset($this->properties['qos']) || $this->properties['qos']) {
             $this->channel->basic_qos(
@@ -156,9 +153,8 @@ class AmqpChannel
         }
 
         $channelCallback = function ($message) use ($callback) {
-            if ($message->get('redelivered') === true && $this->redeliveryCheck($message)) {
-                // Skip processing this message since it's a duplicate
-                return $this->redeliverySkip($message);
+            if ($message->get('redelivered') === true && $this->redeliveryCheckAndSkip($message)) {
+                return;
             }
             if ($message->has('reply_to') && $message->has('correlation_id')) {
                 // Publish job is accepted message, to inform the requestor that it's being worked on
@@ -198,7 +194,7 @@ class AmqpChannel
                 }
             } while (count($this->channel->callbacks) || $this->properties['persistent'] ?? false);
         } catch (AMQPTimeoutException $e) {
-            return true;
+            $restart = false;
         } catch (AMQPProtocolChannelException | AmqpChannelSilentlyRestartedException $e) {
             $restart = true;
         }
@@ -206,7 +202,7 @@ class AmqpChannel
         if ($restart) {
             try {
                 $this->reconnect();
-            } catch(AmqpChannelSilentlyRestartedException $e) {
+            } catch (AmqpChannelSilentlyRestartedException $e) {
                 // This is expected but does not need special handling in this case
             }
             return $this->consume($callback);
@@ -284,52 +280,31 @@ class AmqpChannel
 
     /**
      * Checks if the message is in any of the failed acknowledgement caches
+     * and acknowledges the message, then unsets it from cache
      *
      * @param AMQPMessage $message
      */
-    public function redeliveryCheck(AMQPMessage $message)
-    {
-        if (! empty($this->lastAcknowledge)) {
-            foreach ($this->lastAcknowledge as $item) {
-                if ($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
-                    return true;
-                }
-            }
-        }
-        if (! empty($this->lastReject)) {
-            foreach ($this->lastReject as $item) {
-                if ($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Skips a message by acknowledging it according to cached state
-     *
-     * @param AMQPMessage $message
-     */
-    public function redeliverySkip(AMQPMessage $message)
+    public function redeliveryCheckAndSkip(AMQPMessage $message)
     {
         if (! empty($this->lastAcknowledge)) {
             foreach ($this->lastAcknowledge as $index => $item) {
                 if ($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
                     unset($this->lastAcknowledge[$index]);
-                    return $this->acknowledge($message);
+                    $this->acknowledge($message);
+                    return true;
                 }
             }
         }
         if (! empty($this->lastReject)) {
-            foreach ($this->lastReject as $index => $item) {
+            foreach ($this->lastReject as $index =>$item) {
                 if ($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
                     unset($this->lastReject[$index]);
-                    return $this->reject($message, $item[1]);
+                    $this->reject($message, $item[1]);
+                    return true;
                 }
             }
         }
-        return true;
+        return false;
     }
 
     /**
@@ -389,7 +364,7 @@ class AmqpChannel
     /**
      * Establishes a connection to a broker and creates a channel
      */
-    private function connect()
+    public function connect()
     {
         if (! empty($this->properties['ssl_options'])) {
             $this->connection = new AMQPSSLConnection(
