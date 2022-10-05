@@ -54,8 +54,8 @@ class Amqp
         }
         $message = new AMQPMessage($message, $messageProperties);
         AmqpChannel::create(array_merge($properties, [
-            'queue' => uniqid() . '-publisher',
-        ]))->publish($route, $message)->disconnect();
+            'queue' => 'publisher',
+        ]))->publish($route, $message);
     }
 
     /**
