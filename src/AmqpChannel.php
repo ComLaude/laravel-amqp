@@ -312,10 +312,10 @@ class AmqpChannel
     public function acknowledge(AMQPMessage $message)
     {
         try {
-            $this->channel->basic_ack($message->delivery_info['delivery_tag']);
+            $message->getChannel()->basic_ack($message->get('delivery_tag'));
 
             if ($message->body === 'quit') {
-                $this->channel->basic_cancel($message->delivery_info['consumer_tag']);
+                $message->getChannel()->basic_cancel($this->tag);
             }
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             if ($this->properties['queue_acknowledge_is_final'] ?? true) {
@@ -334,7 +334,7 @@ class AmqpChannel
     public function reject(AMQPMessage $message, $requeue = false)
     {
         try {
-            $this->channel->basic_reject($message->delivery_info['delivery_tag'], $requeue);
+            $message->getChannel()->basic_reject($message->get('delivery_tag'), $requeue);
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             if ($this->properties['queue_reject_is_final'] ?? true) {
                 // We cache the reject just in case it is redelivered
