@@ -2,7 +2,7 @@
 
 namespace ComLaude\Amqp\Tests\Unit;
 
-use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -31,7 +31,7 @@ class AmqpChannelDelaysDisabledTest extends BaseTest
             'timeout' => 1,
         ]);
 
-        $this->master = AmqpChannel::create($this->properties);
+        $this->master = AmqpFactory::create($this->properties);
     }
 
     public function tearDown(): void

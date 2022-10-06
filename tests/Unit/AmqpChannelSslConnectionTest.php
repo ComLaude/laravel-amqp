@@ -2,7 +2,7 @@
 
 namespace ComLaude\Amqp\Tests\Unit;
 
-use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Exception\AMQPIOException;
 
@@ -43,6 +43,6 @@ class AmqpChannelSslConnectionTest extends BaseTest
         $this->expectException(AMQPIOException::class);
         $this->expectExceptionMessage('stream_socket_client()');
         $this->expectExceptionMessage('able to connect to ssl://localhost:5672');
-        $this->master = AmqpChannel::create($this->properties);
+        $this->master = AmqpFactory::create($this->properties);
     }
 }

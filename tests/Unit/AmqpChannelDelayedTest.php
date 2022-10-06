@@ -3,6 +3,7 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Channel\AMQPChannel as AMQPChannelBase;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
@@ -33,7 +34,7 @@ class AmqpChannelDelayedTest extends BaseTest
             'timeout' => 1,
         ]);
 
-        $this->master = AmqpChannel::create($this->properties);
+        $this->master = AmqpFactory::create($this->properties);
         $this->channel = $this->master->getChannel();
         $this->connection = $this->master->getConnection();
     }

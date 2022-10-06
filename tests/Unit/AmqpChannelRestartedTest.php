@@ -2,7 +2,7 @@
 
 namespace ComLaude\Amqp\Tests\Unit;
 
-use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -29,7 +29,7 @@ class AmqpChannelRestartedTest extends BaseTest
             'timeout' => 1,
             'persistent_restart_period' => 1,
         ]);
-        $this->master = AmqpChannel::create($this->properties);
+        $this->master = AmqpFactory::create($this->properties);
     }
 
     public function tearDown(): void

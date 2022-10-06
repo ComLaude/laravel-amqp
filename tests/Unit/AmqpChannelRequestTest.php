@@ -2,7 +2,7 @@
 
 namespace ComLaude\Amqp\Tests\Unit;
 
-use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -49,7 +49,7 @@ class AmqpChannelRequestTest extends BaseTest
             'timeout' => 1,
         ]);
 
-        $this->master = AmqpChannel::create($this->properties)->declareQueue();
+        $this->master = AmqpFactory::create($this->properties)->declareQueue();
         $this->queue = $this->master->getQueue();
     }
 

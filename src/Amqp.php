@@ -53,7 +53,7 @@ class Amqp
             return;
         }
         $message = new AMQPMessage($message, $messageProperties);
-        AmqpChannel::create(array_merge($properties, [
+        AmqpFactory::create(array_merge($properties, [
             'queue' => 'publisher',
         ]))->publish($route, $message);
     }
@@ -82,7 +82,7 @@ class Amqp
      */
     public function consume(Closure $callback, $properties = [])
     {
-        AmqpChannel::create($properties)->consume($callback);
+        AmqpFactory::create($properties)->consume($callback);
     }
 
     /**
@@ -93,7 +93,7 @@ class Amqp
      */
     public function acknowledge(AMQPMessage $message, $properties = [])
     {
-        AmqpChannel::create($properties)->acknowledge($message);
+        AmqpFactory::create($properties)->acknowledge($message);
     }
 
     /**
@@ -105,7 +105,7 @@ class Amqp
      */
     public function reject(AMQPMessage $message, $requeue = false, $properties = [])
     {
-        AmqpChannel::create($properties)->reject($message, $requeue);
+        AmqpFactory::create($properties)->reject($message, $requeue);
     }
 
     /**
@@ -122,7 +122,7 @@ class Amqp
         // We override the queue away from default properties since we're going to
         // create an anonymous, exclusive queue to accept responses, we still permit
         // explicit overrides from the caller
-        return AmqpChannel::create(array_merge([
+        return AmqpFactory::create(array_merge([
             'exchange' => '',
             'queue' => '',
             'queue_passive' => false,

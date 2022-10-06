@@ -19,12 +19,6 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class AmqpChannel
 {
-    /**
-     * Reference to all open channels, defaults to opening the
-     * config based channel and route non-overriden requests through it
-     */
-    private static $channels = [];
-
     private $properties;
     private $tag;
     private $connection;
@@ -43,7 +37,7 @@ class AmqpChannel
      *
      * @param array $properties
      */
-    private function __construct(array $properties = [])
+    public function __construct(array $properties = [])
     {
         $this->properties = $properties;
         $this->retry = $properties['reconnect_attempts'] ?? 3;
@@ -53,26 +47,6 @@ class AmqpChannel
 
         $this->connect();
         $this->declareExchange();
-    }
-
-    /**
-     * Creates a channel instance or returns an already open channel
-     *
-     * @param array $properties
-     * @return AmqpChannel
-     */
-    public static function create(array $properties = [], array $base = null)
-    {
-        // Merge properties with config
-        if (empty($base)) {
-            $base = config('amqp.properties.' . config('amqp.use'));
-        }
-        $final = array_merge($base, $properties);
-        // Try to find a matching channel first
-        if (isset(self::$channels[$final['exchange'] . '.' . $final['queue']])) {
-            return self::$channels[$final['exchange'] . '.' . $final['queue']];
-        }
-        return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
     }
 
     /**
@@ -159,7 +133,7 @@ class AmqpChannel
             }
             if ($message->has('reply_to') && $message->has('correlation_id')) {
                 // Publish job is accepted message, to inform the requestor that it's being worked on
-                $responseChannel = self::create(['exchange' => '']);
+                $responseChannel = AmqpFactory::create(['exchange' => '']);
                 $responseChannel->publish($message->get('reply_to'), new AMQPMessage('', [
                     'correlation_id' => $message->get('correlation_id') . '_accepted',
                 ]));
@@ -232,7 +206,7 @@ class AmqpChannel
             // Tweak message to include reply-to to our exclusive queue
             // we only need one correlation id for this entire request,
             // together with index of each message we should be good
-            self::create($properties)->declareQueue()->publish($route, new AMQPMessage($message, [
+            AmqpFactory::create($properties)->declareQueue()->publish($route, new AMQPMessage($message, [
                 'reply_to' => $this->queue[0],
                 'correlation_id' => $requestId,
             ]));
@@ -346,9 +320,7 @@ class AmqpChannel
 
     public function disconnect()
     {
-        if (! empty($this->properties['exchange']) && ! empty($this->properties['queue'])) {
-            unset(self::$channels[$this->properties['exchange'] . '.' . $this->properties['queue']]);
-        }
+        AmqpFactory::clear($this->properties);
         try {
             if (! empty($this->channel)) {
                 $this->channel->close();

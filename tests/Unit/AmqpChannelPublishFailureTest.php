@@ -3,6 +3,7 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
 use PhpAmqpLib\Message\AMQPMessage;
@@ -31,7 +32,7 @@ class AmqpChannelPublishFailureTest extends BaseTest
             'reconnect_attempts' => 0,
         ]);
 
-        $this->master = AmqpChannel::create($this->properties);
+        $this->master = AmqpFactory::create($this->properties);
     }
 
     public function testPublishToDisconnectedChannelWithoutRetries()

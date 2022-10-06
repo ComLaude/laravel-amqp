@@ -2,7 +2,7 @@
 
 namespace ComLaude\Amqp\Tests;
 
-use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use Mockery;
 use phpmock\MockBuilder;
 use PHPUnit\Framework\TestCase;
@@ -56,17 +56,17 @@ class BaseTest extends TestCase
 
     public function consumeNextMessage($properties)
     {
-        AmqpChannel::create($properties)->getChannel()->wait(null, true);
+        AmqpFactory::create($properties)->getChannel()->wait(null, true);
     }
 
     public function deleteEverything($properties)
     {
-        AmqpChannel::create($properties)->getChannel()->queue_delete($properties['queue']);
-        AmqpChannel::create($properties)->disconnect();
+        AmqpFactory::create($properties)->getChannel()->queue_delete($properties['queue']);
+        AmqpFactory::create($properties)->disconnect();
     }
 
     public function createQueue($properties)
     {
-        AmqpChannel::create($properties)->declareQueue();
+        AmqpFactory::create($properties)->declareQueue();
     }
 }
