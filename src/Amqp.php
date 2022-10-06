@@ -6,11 +6,10 @@ use Closure;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
- * @author David krizanic <david.krizanic@comlaude.com>
+ * @author David Krizanic <david.krizanic@comlaude.com>
  */
 class Amqp
 {
-
     /**
      * Flag for globally disabling message publishing
      */
@@ -46,14 +45,32 @@ class Amqp
      * @param string $route
      * @param mixed $message
      * @param array $properties
+     * @param array $messageProperties
      */
-    public function publish($route, $message, array $properties = [])
+    public function publish($route, $message, array $properties = [], array $messageProperties = [])
     {
         if (! $this->isEnabled()) {
             return;
         }
-        $message = new AMQPMessage($message);
-        AmqpChannel::create($properties)->publish($route, $message);
+        $message = new AMQPMessage($message, $messageProperties);
+        AmqpFactory::create(array_merge($properties, [
+            'queue' => 'publisher',
+        ]))->publish($route, $message);
+    }
+
+    /**
+     * Publishes a persistent message to the queue
+     *
+     * @param string $route
+     * @param mixed $message
+     * @param array $properties
+     */
+    public function publishPersistent($route, $message, array $properties = [])
+    {
+        if (! $this->isEnabled()) {
+            return;
+        }
+        return $this->publish($route, $message, $properties, ['delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT]);
     }
 
     /**
@@ -65,7 +82,7 @@ class Amqp
      */
     public function consume(Closure $callback, $properties = [])
     {
-        AmqpChannel::create($properties)->consume($callback);
+        AmqpFactory::create($properties)->consume($callback);
     }
 
     /**
@@ -76,7 +93,7 @@ class Amqp
      */
     public function acknowledge(AMQPMessage $message, $properties = [])
     {
-        AmqpChannel::create($properties)->acknowledge($message);
+        AmqpFactory::create($properties)->acknowledge($message);
     }
 
     /**
@@ -88,7 +105,7 @@ class Amqp
      */
     public function reject(AMQPMessage $message, $requeue = false, $properties = [])
     {
-        AmqpChannel::create($properties)->reject($message);
+        AmqpFactory::create($properties)->reject($message, $requeue);
     }
 
     /**
@@ -105,7 +122,7 @@ class Amqp
         // We override the queue away from default properties since we're going to
         // create an anonymous, exclusive queue to accept responses, we still permit
         // explicit overrides from the caller
-        AmqpChannel::create(array_merge([
+        return AmqpFactory::create(array_merge([
             'exchange' => '',
             'queue' => '',
             'queue_passive' => false,
@@ -113,6 +130,7 @@ class Amqp
             'queue_exclusive' => true,
             'queue_auto_delete' => true,
             'queue_nowait' => false,
+            'queue_properties' => ['x-ha-policy' => ['S', 'all'], 'x-queue-type' => ['S', 'classic']],
         ], $properties))->request(
             $route,
             is_array($messages) ? $messages : [$messages],

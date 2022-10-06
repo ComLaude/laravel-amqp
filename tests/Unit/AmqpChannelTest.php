@@ -3,6 +3,7 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\AmqpChannel;
+use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Channel\AMQPChannel as AMQPChannelBase;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
@@ -21,48 +22,8 @@ class AmqpChannelTest extends BaseTest
     {
         parent::setUp();
 
-        if (empty($this->master)) {
-            $this->master = AmqpChannel::create(array_merge($this->properties, [
-
-                // Travis defaults here
-                'host'                  => 'localhost',
-                'port'                  =>  5672,
-                'username'              => 'guest',
-                'password'              => 'guest',
-
-                'queue' => 'test',
-                'queue_auto_delete' => true,
-                'exchange' => 'test',
-                'consumer_tag' => 'test',
-                'connect_options' => ['heartbeat' => 2],
-                'bindings' => [
-                    [
-                        'queue'    => 'test',
-                        'routing'  => 'example.route.key',
-                    ],
-                ],
-                'timeout' => 1,
-            ]), ['mock-base' => true, 'persistent' => false]);
-
-            $this->channel = $this->master->getChannel();
-            $this->connection = $this->master->getConnection();
-        }
-    }
-
-    public function testCreateAmqpChannel()
-    {
-        $this->master = AmqpChannel::create(array_merge($this->properties, [
-
-            // Travis defaults here
-            'host'                  => 'localhost',
-            'port'                  =>  5672,
-            'username'              => 'guest',
-            'password'              => 'guest',
-
+        $this->properties = array_merge($this->properties, [
             'queue' => 'test',
-            'queue_auto_delete' => true,
-            'exchange' => 'test',
-            'consumer_tag' => 'test',
             'connect_options' => ['heartbeat' => 2],
             'bindings' => [
                 [
@@ -71,7 +32,22 @@ class AmqpChannelTest extends BaseTest
                 ],
             ],
             'timeout' => 1,
-        ]), ['mock-base' => true, 'persistent' => false]);
+        ]);
+
+        $this->master = AmqpFactory::create($this->properties);
+        $this->channel = $this->master->getChannel();
+        $this->connection = $this->master->getConnection();
+    }
+
+    public function tearDown(): void
+    {
+        $this->deleteEverything($this->properties);
+        parent::tearDown();
+    }
+
+    public function testCreateAmqpChannel()
+    {
+        $this->master = AmqpFactory::create($this->properties);
 
         $this->channel = $this->master->getChannel();
         $this->connection = $this->master->getConnection();
@@ -89,11 +65,22 @@ class AmqpChannelTest extends BaseTest
 
         $result = $this->master->publish('empty.target', $message);
 
-        $this->assertNull($result);
+        $this->assertInstanceOf(AmqpChannel::class, $result);
+    }
+
+    public function testPublishToDisconnectedChannel()
+    {
+        $message = new AMQPMessage('Test empty.target message');
+
+        sleep(6);
+        $result = $this->master->publish('empty.target', $message);
+
+        $this->assertInstanceOf(AmqpChannel::class, $result);
     }
 
     public function testPublishToChannelAndConsumeThenAcknowledge()
     {
+        $this->createQueue($this->properties);
         $message = new AMQPMessage('Test message publish and consume');
 
         $this->master->publish('example.route.key', $message);
@@ -109,6 +96,7 @@ class AmqpChannelTest extends BaseTest
 
     public function testPublishToChannelAndConsumeThenReject()
     {
+        $this->createQueue($this->properties);
         $message = new AMQPMessage('Test message publish and consume');
 
         $this->master->publish('example.route.key', $message);
@@ -120,5 +108,27 @@ class AmqpChannelTest extends BaseTest
             $object->assertEquals($consumedMessage->body, $message->body);
             $master->reject($consumedMessage);
         });
+    }
+
+    public function testConsumeOnEmptyQueue()
+    {
+        $this->createQueue($this->properties);
+        $count = 0;
+        $return = $this->master->consume(function ($consumedMessage) use (&$count) {
+            $count++;
+        });
+
+        $this->assertTrue($return);
+        $this->assertEquals(0, $count);
+    }
+
+    public function testDisconnectOnDisconnectedChannel()
+    {
+        $this->createQueue($this->properties);
+
+        sleep(6);
+        $this->master->disconnect();
+
+        $this->assertNull($this->master->getChannel());
     }
 }

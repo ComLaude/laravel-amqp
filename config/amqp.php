@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * @author David Krizanic <david.krizanic@comlaude.com>
+ */
+
 return [
 
     /*
@@ -38,11 +42,16 @@ return [
 
             'queue_force_declare'   => false,
             'queue_passive'         => false,
-            'queue_durable'         => true,
+            'queue_durable'         => true,          // only change when not using quorum queues
             'queue_exclusive'       => false,
-            'queue_auto_delete'     => false,
+            'queue_auto_delete'     => false,         // only change when not using quorum queues
             'queue_nowait'          => false,
-            'queue_properties'      => ['x-ha-policy' => ['S', 'all']],
+            'queue_properties'      => [
+                'x-ha-policy' => ['S', 'all'],
+                'x-queue-type' => ['S', 'quorum'],
+            ],
+            'queue_acknowledge_is_final' => true,     // if important work is done inside a consumer after the acknowledge call, this should be false
+            'queue_reject_is_final'      => true,     // if important work is done inside a consumer after the reject call, this should be false
 
             'consumer_tag'              => '',
             'consumer_no_local'         => false,
@@ -55,7 +64,7 @@ return [
             'request_accepted_timeout'  => 0.5,      // seconds in decimal accepted
             'request_handled_timeout'   => 5,        // seconds in decimal accepted
 
-            'qos'                   => false,
+            'qos'                   => true,
             'qos_prefetch_size'     => 0,
             'qos_prefetch_count'    => 1,
             'qos_a_global'          => false,
