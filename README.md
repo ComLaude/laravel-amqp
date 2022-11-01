@@ -67,6 +67,8 @@ return [
             'queue_properties'      => [
                 'x-ha-policy' => ['S', 'all'],
                 'x-queue-type' => ['S', 'quorum'],
+                // 'x-dead-letter-exchange' => ['S', 'amq.topic-dlx'], // if provided an exchange and queue (queue_name-dlx) will be automatically declared
+                // 'x-delivery-limit' => ['I', 5],                     // the delivery limit will be set on the relevant queue but not the DLX queue itself
             ],
             'queue_acknowledge_is_final' => true,     // if important work is done inside a consumer after the acknowledge call, this should be false
             'queue_reject_is_final'      => true,     // if important work is done inside a consumer after the reject call, this should be false
@@ -167,11 +169,11 @@ Amqp::publish('routing-key', 'message' , ['exchange' => 'amq.direct']);
 
 ```php
 Amqp::consume(function ($message) {
-    		
+
     var_dump($message->body);
 
     Amqp::acknowledge($message);
-        
+
 });
 ```
 
@@ -179,11 +181,11 @@ Amqp::consume(function ($message) {
 
 ```php
 Amqp::consume(function ($message) {
-    		
+
    var_dump($message->body);
 
    Amqp::acknowledge($message);
-      
+
 }, [
     'timeout' => 2,
     'vhost'   => 'vhost3',
@@ -255,10 +257,39 @@ Amqp::request('example.routing.key', [
     'message2',
 
 ], function ($message) {
-   
+
    echo("The remote server said " . $message->getBody());
 
 });
+```
+
+### Consume messages, with dead letter exchange configured
+
+When using the `x-dead-letter-exchange` parameter in queue properties the package will additionally:
+- declare the <queue_name>-dlx queue
+- declare the exchange itself
+
+When the consumer fails or requeues the message for 5 times the message will instead be routed to this new queue via the dead letter exchange.
+
+```php
+Amqp::consume(function ($message) {
+
+   var_dump($message->body);
+
+   Amqp::acknowledge($message);
+
+}, [
+    'timeout' => 2,
+    'vhost'   => 'vhost3',
+    'queue'   => 'my-example-queue',
+    'persistent' => true // required if you want to listen forever
+    'queue_properties'      => [
+        'x-ha-policy' => ['S', 'all'],
+        'x-queue-type' => ['S', 'quorum'],
+        'x-dead-letter-exchange' => ['S', 'amq.topic-dlx'], // will auto-declare queue named my-example-queue-dlx
+        'x-delivery-limit' => ['I', 5], // after 5 deliveries the message is routed to my-example-queue-dlx
+    ],
+]);
 ```
 
 ## Credits

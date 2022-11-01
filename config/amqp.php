@@ -49,6 +49,8 @@ return [
             'queue_properties'      => [
                 'x-ha-policy' => ['S', 'all'],
                 'x-queue-type' => ['S', 'quorum'],
+                // 'x-dead-letter-exchange' => ['S', 'amq.topic-dlx'], // if provided an exchange and queue will be automatically declared
+                // 'x-delivery-limit' => ['I', 5],                     // the delivery limit will be set on the relevant queue but not the DLX queue itself
             ],
             'queue_acknowledge_is_final' => true,     // if important work is done inside a consumer after the acknowledge call, this should be false
             'queue_reject_is_final'      => true,     // if important work is done inside a consumer after the reject call, this should be false

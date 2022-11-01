@@ -393,6 +393,19 @@ class AmqpChannel
             );
         }
 
+        if (! empty($this->properties['queue_properties']['x-dead-letter-exchange'][1])) {
+            $this->channel->exchange_declare(
+                $this->properties['queue_properties']['x-dead-letter-exchange'][1],
+                $this->properties['exchange_type'] ?? 'topic',
+                $this->properties['exchange_passive'] ?? false,
+                $this->properties['exchange_durable'] ?? true,
+                $this->properties['exchange_auto_delete'] ?? false,
+                $this->properties['exchange_internal'] ?? false,
+                $this->properties['exchange_nowait'] ?? false,
+                $this->properties['exchange_properties'] ?? []
+            );
+        }
+
         return $this;
     }
 
@@ -414,14 +427,43 @@ class AmqpChannel
             ]
         );
 
+        $queueName = $this->properties['queue'] ?: $this->queue[0];
+        $queueNameDeadLetterExchange = $queueName . '-dlx';
+
+        if (! empty($this->properties['queue_properties']['x-dead-letter-exchange'][1])) {
+            $this->queue = $this->channel->queue_declare(
+                $queueNameDeadLetterExchange,
+                $this->properties['queue_passive'] ?? false,
+                $this->properties['queue_durable'] ?? true,
+                $this->properties['queue_exclusive'] ?? false,
+                $this->properties['queue_auto_delete'] ?? false,
+                $this->properties['queue_nowait'] ?? false,
+                array_diff_key($this->properties['queue_properties'] ?? [
+                    'x-ha-policy' => ['S', 'all'],
+                    'x-queue-type' => ['S', 'quorum'],
+                ], [
+                    'x-dead-letter-exchange' => 'not_set_on_dlx_queues',
+                    'x-delivery-limit' => 'not_set_on_dlx_queues',
+                ])
+            );
+        }
+
         if (! empty($this->properties['bindings'])) {
             foreach ((array) $this->properties['bindings'] as $binding) {
                 if ($binding['queue'] === $this->properties['queue']) {
                     $this->channel->queue_bind(
-                        $this->properties['queue'] ?: $this->queue[0],
+                        $queueName,
                         $this->properties['exchange'],
                         $binding['routing']
                     );
+
+                    if (! empty($this->properties['queue_properties']['x-dead-letter-exchange'][1])) {
+                        $this->channel->queue_bind(
+                            $queueNameDeadLetterExchange,
+                            $this->properties['queue_properties']['x-dead-letter-exchange'][1],
+                            $binding['routing']
+                        );
+                    }
                 }
             }
         }
