@@ -31,6 +31,8 @@ return [
             'connect_options'       => [],
             'ssl_options'           => [],
 
+            'register_pcntl_heartbeat_sender' => true, // Signal based heartbeat sender 
+
             'exchange'              => 'amq.topic',
             'exchange_type'         => 'topic',
             'exchange_passive'      => false,

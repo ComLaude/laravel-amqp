@@ -5,6 +5,7 @@ use Closure;
 use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
 use PhpAmqpLib\Connection\AMQPSSLConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Connection\Heartbeat\PCNTLHeartbeatSender;
 use PhpAmqpLib\Exception\AMQPChannelClosedException;
 use PhpAmqpLib\Exception\AMQPConnectionClosedException;
 use PhpAmqpLib\Exception\AMQPConnectionException;
@@ -370,6 +371,10 @@ class AmqpChannel
             );
         }
         $this->connection->set_close_on_destruct(true);
+        if ($this->properties['register_pcntl_heartbeat_sender'] ?? false) {
+            (new PCNTLHeartbeatSender($this->connection))->register();
+        }
+
         $this->channel = $this->connection->channel();
 
         return $this;
