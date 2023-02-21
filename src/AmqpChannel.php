@@ -23,6 +23,7 @@ class AmqpChannel
     private $properties;
     private $tag;
     private $connection;
+    private $signaller;
     private $channel;
     private $queue;
     private $lastAcknowledge;
@@ -46,8 +47,10 @@ class AmqpChannel
         $this->lastReject = [];
         $this->tag = ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . uniqid();
 
+        $this->preConnectionEstablished();
         $this->connect();
         $this->declareExchange();
+        $this->postConnectionEstablished();
     }
 
     /**
@@ -370,14 +373,32 @@ class AmqpChannel
                 $this->properties['connect_options']['ssl_protocol'] ?? null
             );
         }
-        $this->connection->set_close_on_destruct(true);
-        if ($this->properties['register_pcntl_heartbeat_sender'] ?? false) {
-            (new PCNTLHeartbeatSender($this->connection))->register();
-        }
 
         $this->channel = $this->connection->channel();
 
         return $this;
+    }
+
+    /**
+     * Processes connection configuration before a connection has opened fully
+     */
+    private function preConnectionEstablished()
+    {
+        if ($this->signaller) {
+            $this->signaller->unregister();
+        }
+    }
+
+    /**
+     * Processes connection configuration after a connection has opened fully
+     */
+    private function postConnectionEstablished()
+    {
+        $this->connection->set_close_on_destruct(true);
+        if ($this->properties['register_pcntl_heartbeat_sender'] ?? false) {
+            $this->signaller = new PCNTLHeartbeatSender($this->connection);
+            $this->signaller->register();
+        }
     }
 
     /**
@@ -491,8 +512,10 @@ class AmqpChannel
             // just continue with reconnect
         }
 
+        $this->preConnectionEstablished();
         $this->connect();
         $this->declareExchange();
+        $this->postConnectionEstablished();
         if (! $intentionalReconnection) {
             throw new AmqpChannelSilentlyRestartedException;
         }
