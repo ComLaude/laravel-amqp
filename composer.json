@@ -21,7 +21,7 @@
     }
   ],
   "require": {
-    "php": "^7.3|^8.0",
+    "php": "^7.4|^8.0",
     "php-amqplib/php-amqplib": ">=3.1"
   },
   "require-dev": {
@@ -30,7 +30,7 @@
     "illuminate/support": ">=v5.5.28",
     "tightenco/tlint": "^6.0",
     "php-mock/php-mock-phpunit": "^2.6",
-    "comlaude/php-formatter": "1.0.1"
+    "comlaude/php-formatter": "^1.0"
   },
   "autoload": {
     "psr-4": {
