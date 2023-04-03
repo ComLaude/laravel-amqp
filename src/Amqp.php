@@ -150,7 +150,7 @@ class Amqp
     public function requestWithResponse(string $route, string $message, array $properties = [])
     {
         $response = null;
-        static::request(
+        $this->request(
             $route,
             [$message],
             function ($message) use (&$response) {

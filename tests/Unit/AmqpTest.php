@@ -194,10 +194,10 @@ class AmqpTest extends BaseTest
     {
         $mockedFacade = new Amqp;
         $startTime = microtime(true);
-        $mockedFacade->requestWithResponse(
+        $this->assertNull($mockedFacade->requestWithResponse(
             'example.route.1',
             'message1'
-        );
+        ));
         $doneTime = microtime(true) - $startTime;
         $this->assertGreaterThan(0.5, $doneTime);
         $this->assertLessThan(1, $doneTime);
@@ -205,16 +205,23 @@ class AmqpTest extends BaseTest
 
     public function testRequestWithResponseHandler()
     {
+        $response = 'this worked!';
+        $route = 'example.route.2';
+        $message = 'message2';
+        $mockedResponseMessage = Mockery::mock('PhpAmqpLib\Message\AMQPMessage[getBody]');
+        $mockedResponseMessage->shouldReceive('getBody')->once()->andReturn($response);
         $mockedFacade = Mockery::mock('ComLaude\Amqp\Amqp[request]');
-        $mockedFacade->shouldReceive('request')->with(
-            'example.route.2',
-            ['message2'],
+        $mockedFacade->shouldReceive('request')->once()->with(
+            $route,
+            [$message],
             Mockery::any(),
             [],
-        );
-        $this->assertNull($mockedFacade->requestWithResponse(
-            'example.route.2',
-            'message2'
+        )->andReturnUsing(function ($route, $messages, $callback, $properties) use ($mockedResponseMessage) {
+            $callback($mockedResponseMessage);
+        });
+        $this->assertEquals($response, $mockedFacade->requestWithResponse(
+            $route,
+            $message
         ));
     }
 }
