@@ -4,6 +4,7 @@ namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\Amqp;
 use ComLaude\Amqp\Tests\BaseTest;
+use Mockery;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
@@ -187,5 +188,33 @@ class AmqpTest extends BaseTest
         $doneTime = microtime(true) - $startTime;
         $this->assertGreaterThan(0.5, $doneTime);
         $this->assertLessThan(1, $doneTime);
+    }
+
+    public function testRequestWithResponseNotAccepted()
+    {
+        $mockedFacade = new Amqp;
+        $startTime = microtime(true);
+        $mockedFacade->requestWithResponse(
+            'example.route.1',
+            'message1'
+        );
+        $doneTime = microtime(true) - $startTime;
+        $this->assertGreaterThan(0.5, $doneTime);
+        $this->assertLessThan(1, $doneTime);
+    }
+
+    public function testRequestWithResponseHandler()
+    {
+        $mockedFacade = Mockery::mock('ComLaude\Amqp\Amqp[request]');
+        $mockedFacade->shouldReceive('request')->with(
+            'example.route.2',
+            ['message2'],
+            Mockery::any(),
+            [],
+        );
+        $this->assertNull($mockedFacade->requestWithResponse(
+            'example.route.2',
+            'message2'
+        ));
     }
 }
