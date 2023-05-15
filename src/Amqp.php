@@ -122,9 +122,9 @@ class Amqp
         // We override the queue away from default properties since we're going to
         // create an anonymous, exclusive queue to accept responses, we still permit
         // explicit overrides from the caller
-        return AmqpFactory::create(array_merge($properties, [
-            'exchange' => '',
-            'queue' => '',
+        return AmqpFactory::createTemporary(array_merge($properties, [
+            'exchange' => false,
+            'queue' => false,
             'queue_passive' => false,
             'queue_durable' => false,
             'queue_exclusive' => true,
