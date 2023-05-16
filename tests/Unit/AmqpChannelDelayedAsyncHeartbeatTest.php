@@ -66,7 +66,7 @@ class AmqpChannelDelayedAsyncHeartbeatTest extends BaseTest
 
         $counter = 0;
 
-        // This will must not hit a heartbeat missed exception
+        // This must not hit a heartbeat missed exception
         $this->master->consume(function ($consumedMessage) use ($messages, &$counter) {
             $this->assertEquals($consumedMessage->body, $messages[$counter++]->body);
             sleep(2);
