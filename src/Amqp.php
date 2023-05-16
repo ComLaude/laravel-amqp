@@ -43,11 +43,11 @@ class Amqp
      * Publishes a message to the queue
      *
      * @param string $route
-     * @param mixed $message
+     * @param string $message
      * @param array $properties
      * @param array $messageProperties
      */
-    public function publish($route, $message, array $properties = [], array $messageProperties = [])
+    public function publish(string $route, string $message, array $properties = [], array $messageProperties = [])
     {
         if (! $this->isEnabled()) {
             return;
@@ -62,10 +62,10 @@ class Amqp
      * Publishes a persistent message to the queue
      *
      * @param string $route
-     * @param mixed $message
+     * @param string $message
      * @param array $properties
      */
-    public function publishPersistent($route, $message, array $properties = [])
+    public function publishPersistent(string $route, string $message, array $properties = [])
     {
         if (! $this->isEnabled()) {
             return;
@@ -80,7 +80,7 @@ class Amqp
      * @param array $properties
      * @throws Exception\Configuration
      */
-    public function consume(Closure $callback, $properties = [])
+    public function consume(Closure $callback, array $properties = [])
     {
         AmqpFactory::create($properties)->consume($callback);
     }
@@ -91,7 +91,7 @@ class Amqp
      * @param AMQPMessage $message
      * @param array $properties
      */
-    public function acknowledge(AMQPMessage $message, $properties = [])
+    public function acknowledge(AMQPMessage $message, array $properties = [])
     {
         AmqpFactory::create($properties)->acknowledge($message);
     }
@@ -103,7 +103,7 @@ class Amqp
      * @param bool $requeue
      * @param array $properties
      */
-    public function reject(AMQPMessage $message, $requeue = false, $properties = [])
+    public function reject(AMQPMessage $message, bool $requeue = false, array $properties = [])
     {
         AmqpFactory::create($properties)->reject($message, $requeue);
     }
@@ -113,16 +113,16 @@ class Amqp
      * the responses for each message are passed to $callback to handle
      *
      * @param string $route
-     * @param mixed $message
+     * @param array $messages
      * @param Closure $callback
      * @param array $properties
      */
-    public function request($route, $messages, Closure $callback, $properties = [])
+    public function request(string $route, array $messages, Closure $callback, array $properties = [])
     {
         // We override the queue away from default properties since we're going to
         // create an anonymous, exclusive queue to accept responses, we still permit
         // explicit overrides from the caller
-        return AmqpFactory::create(array_merge([
+        return AmqpFactory::create(array_merge($properties, [
             'exchange' => '',
             'queue' => '',
             'queue_passive' => false,
@@ -131,11 +131,33 @@ class Amqp
             'queue_auto_delete' => true,
             'queue_nowait' => false,
             'queue_properties' => ['x-ha-policy' => ['S', 'all'], 'x-queue-type' => ['S', 'classic']],
-        ], $properties))->request(
+        ]))->request(
             $route,
             is_array($messages) ? $messages : [$messages],
             $callback,
             $properties
         );
+    }
+
+    /**
+     * Publishes messages with routing key and awaits a response on a dedicated reply-to queue
+     * the responses for each message are passed to $callback to handle
+     *
+     * @param string $route
+     * @param string $message
+     * @param array $properties
+     */
+    public function requestWithResponse(string $route, string $message, array $properties = [])
+    {
+        $response = null;
+        $this->request(
+            $route,
+            [$message],
+            function ($message) use (&$response) {
+                $response = $message->getBody();
+            },
+            $properties,
+        );
+        return $response;
     }
 }

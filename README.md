@@ -261,6 +261,10 @@ Amqp::request('example.routing.key', [
    echo("The remote server said " . $message->getBody());
 
 });
+
+// Or for single message requests you can just do
+$response = Amqp::requestWithResponse('example.routing.key', 'quickly');
+// $response is already the message content as a string "I handled this message quickly"
 ```
 
 ### Consume messages, with dead letter exchange configured
