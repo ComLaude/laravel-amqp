@@ -196,21 +196,17 @@ class AmqpChannel
      */
     public function request($route, $messages, $callback, $properties = [])
     {
-        // If this queue is already consuming something we have to reset it to remove the existing callback
-        if ($this->channel->is_consuming()) {
-            $this->channel->basic_cancel('request-exclusive-listener');
-        }
-
         // Set up the queue we're going to listen to responses on
         $this->declareQueue();
 
         // Publish all the messages
         $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
+        $requestSender = AmqpFactory::createTemporary($properties);
         foreach ($messages as $index => $message) {
             // Tweak message to include reply-to to our exclusive queue
             // we only need one correlation id for this entire request,
             // together with index of each message we should be good
-            AmqpFactory::create($properties)->declareQueue()->publish($route, new AMQPMessage($message, [
+            $requestSender->publish($route, new AMQPMessage($message, [
                 'reply_to' => $this->queue[0],
                 'correlation_id' => $requestId,
             ]));
@@ -249,6 +245,9 @@ class AmqpChannel
             usleep(10);
             $this->channel->wait(null, true, $this->properties['request_accepted_timeout']);
         }
+
+        $this->channel->basic_cancel('request-exclusive-listener');
+        $this->channel->queue_delete($this->queue[0]);
 
         return $jobsHandled == count($messages);
     }

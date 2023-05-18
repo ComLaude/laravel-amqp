@@ -32,6 +32,21 @@ class AmqpFactory
         return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
     }
 
+    /**
+     * Creates a temporary channel instance
+     *
+     * @param array $properties
+     * @return AmqpChannel
+     */
+    public static function createTemporary(array $properties = [], array $base = null)
+    {
+        // Merge properties with config
+        if (empty($base)) {
+            $base = config('amqp.properties.' . config('amqp.use'));
+        }
+        return new AmqpChannel(array_merge($base, $properties));
+    }
+
     public static function clear($properties)
     {
         if (! empty($properties['exchange']) && ! empty($properties['queue'])) {
