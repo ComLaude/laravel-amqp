@@ -161,17 +161,23 @@ class AmqpChannel
                 $channelCallback,
             );
 
+            // Consume queue indefinitely
+            if ($this->properties['persistent'] ?? false) {
+                $this->channel->consume($this->properties['timeout'] ?? 5);
+            }
+
+            // Consume queue until empty, then stop
             $restart = false;
             $startTime = time();
             do {
-                $this->channel->wait(null, false, $this->properties['timeout'] ?? 0);
+                $this->channel->wait(null, false, $this->properties['timeout'] ?? 5);
                 if ($this->properties['persistent_restart_period'] > 0
                     && $this->properties['persistent_restart_period'] < time() - $startTime
                 ) {
                     $restart = true;
                     break;
                 }
-            } while (count($this->channel->callbacks) || $this->properties['persistent'] ?? false);
+            } while (count($this->channel->callbacks));
         } catch (AMQPTimeoutException $e) {
             $restart = false;
         } catch (AMQPProtocolChannelException | AmqpChannelSilentlyRestartedException $e) {
