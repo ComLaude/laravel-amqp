@@ -3,7 +3,6 @@ namespace ComLaude\Amqp;
 
 use Closure;
 use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
-use PhpAmqpLib\Connection\AMQPSSLConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Connection\Heartbeat\PCNTLHeartbeatSender;
 use PhpAmqpLib\Exception\AMQPChannelClosedException;
@@ -348,36 +347,24 @@ class AmqpChannel
      */
     public function connect()
     {
-        if (! empty($this->properties['ssl_options'])) {
-            $this->connection = new AMQPSSLConnection(
-                $this->properties['host'],
-                $this->properties['port'],
-                $this->properties['username'],
-                $this->properties['password'],
-                $this->properties['vhost'],
-                $this->properties['ssl_options'],
-                $this->properties['connect_options']
-            );
-        } else {
-            $this->connection = new AMQPStreamConnection(
-                $this->properties['host'],
-                $this->properties['port'],
-                $this->properties['username'],
-                $this->properties['password'],
-                $this->properties['vhost'],
-                $this->properties['connect_options']['insist'] ?? false,
-                $this->properties['connect_options']['login_method'] ?? 'AMQPLAIN',
-                $this->properties['connect_options']['login_response'] ?? null,
-                $this->properties['connect_options']['locale'] ?? 3,
-                $this->properties['connect_options']['connection_timeout'] ?? 3.0,
-                $this->properties['connect_options']['read_write_timeout'] ?? 130,
-                $this->properties['connect_options']['context'] ?? null,
-                $this->properties['connect_options']['keepalive'] ?? false,
-                $this->properties['connect_options']['heartbeat'] ?? 60,
-                $this->properties['connect_options']['channel_rpc_timeout'] ?? 0.0,
-                $this->properties['connect_options']['ssl_protocol'] ?? null
-            );
-        }
+        $this->connection = new AMQPStreamConnection(
+            $this->properties['host'],
+            $this->properties['port'],
+            $this->properties['username'],
+            $this->properties['password'],
+            $this->properties['vhost'],
+            $this->properties['connect_options']['insist'] ?? false,
+            $this->properties['connect_options']['login_method'] ?? 'AMQPLAIN',
+            $this->properties['connect_options']['login_response'] ?? null,
+            $this->properties['connect_options']['locale'] ?? 3,
+            $this->properties['connect_options']['connection_timeout'] ?? 3.0,
+            $this->properties['connect_options']['read_write_timeout'] ?? 130,
+            $this->properties['connect_options']['context'] ?? null,
+            $this->properties['connect_options']['keepalive'] ?? false,
+            $this->properties['connect_options']['heartbeat'] ?? 60,
+            $this->properties['connect_options']['channel_rpc_timeout'] ?? 0.0,
+            $this->properties['connect_options']['ssl_protocol'] ?? null
+        );
 
         $this->channel = $this->connection->channel();
 
