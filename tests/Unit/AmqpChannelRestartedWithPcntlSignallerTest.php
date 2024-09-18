@@ -41,6 +41,11 @@ class AmqpChannelRestartedWithPcntlSignallerTest extends BaseTest
 
     public function testPublishToChannelAndConsumeGetsConnectionRestarted()
     {
+        // This feature does not work for PHP7, at least not on travis CI
+        if (phpversion() < '8.0.0') {
+            $this->markTestSkipped('Feature not supported in PHP version ' . phpversion());
+        }
+
         $this->createQueue($this->properties);
 
         $messages = [
