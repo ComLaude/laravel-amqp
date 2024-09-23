@@ -10,7 +10,8 @@
         <file>./src/Facades/Amqp.php</file>
     </exclude>
     <report>
-      <text outputFile="php://stdout" showUncoveredFiles="true" />
+      <text outputFile="php://stdout" showUncoveredFiles="true" showOnlySummary="false" />
+      <clover outputFile="clover.xml" />
     </report>
   </coverage>
   <testsuites>
