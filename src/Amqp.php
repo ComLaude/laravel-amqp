@@ -74,6 +74,21 @@ class Amqp
     }
 
     /**
+     * Publishes a priority message to the queue, rabbitmq 4.0.0+ required on quorum queues
+     *
+     * @param string $route
+     * @param string $message
+     * @param array $properties
+     */
+    public function publishPriority(string $route, string $message, array $properties = [])
+    {
+        if (! $this->isEnabled()) {
+            return;
+        }
+        return $this->publish($route, $message, $properties, ['priority' => 5]);
+    }
+
+    /**
      * Adds a message received handler to a queue
      *
      * @param Closure $callback
