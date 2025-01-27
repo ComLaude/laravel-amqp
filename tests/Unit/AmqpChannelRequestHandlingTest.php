@@ -86,4 +86,40 @@ class AmqpChannelRequestHandlingTest extends BaseTest
 
         $this->assertEquals(2, $counter);
     }
+
+    public function testRequestFromServerSideRespondsCorrectlyWhenConsumerReturnsArray()
+    {
+        $correlationId = 'some_random_string';
+        $message = new AMQPMessage('request from client', [
+            'reply_to' => $this->requestor->getQueue()[0],
+            'correlation_id' => $correlationId,
+        ]);
+
+        // Publish the job from requestor
+        $this->requestor->publish('example.route.key', $message);
+
+        // Handle the job from the server
+        $this->master->consume(function ($consumedMessage) use ($message) {
+            $this->assertEquals($message->body, $consumedMessage->body);
+            $this->assertEquals($message->get('reply_to'), $consumedMessage->get('reply_to'));
+            $this->assertEquals($message->get('correlation_id'), $consumedMessage->get('correlation_id'));
+            $this->master->acknowledge($consumedMessage);
+            return ['data' => 'server responded for ' . $consumedMessage->body];
+        });
+
+        // Check the response to the requestor is as expected
+        $counter = 0;
+        $this->requestor->consume(function ($consumedMessage) use ($message, &$counter) {
+            if ($counter++ == 0) {
+                $this->assertEquals('', $consumedMessage->body);
+                $this->assertEquals($message->get('correlation_id') . '_accepted', $consumedMessage->get('correlation_id'));
+            } else {
+                $this->assertEquals('{"data":"server responded for request from client"}', $consumedMessage->body);
+                $this->assertEquals($message->get('correlation_id') . '_handled', $consumedMessage->get('correlation_id'));
+            }
+            $consumedMessage->ack();
+        });
+
+        $this->assertEquals(2, $counter);
+    }
 }

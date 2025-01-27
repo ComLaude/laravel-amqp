@@ -141,7 +141,11 @@ class AmqpChannel
                     'correlation_id' => $message->get('correlation_id') . '_accepted',
                 ]));
                 // Publish response to the original job, using return value from handler
-                return $responseChannel->publish($message->get('reply_to'), new AMQPMessage($callback($message), [
+                $callbackResult = $callback($message);
+                if (! is_string($callbackResult)) {
+                    $callbackResult = json_encode($callbackResult);
+                }
+                return $responseChannel->publish($message->get('reply_to'), new AMQPMessage($callbackResult, [
                     'correlation_id' => $message->get('correlation_id') . '_handled',
                 ]));
             }
