@@ -128,11 +128,11 @@ class Amqp
      * the responses for each message are passed to $callback to handle
      *
      * @param string $route
-     * @param array|string $messages
+     * @param array $messages
      * @param Closure $callback
      * @param array $properties
      */
-    public function request(string $route, array|string $messages, Closure $callback, array $properties = []): bool
+    public function request(string $route, array $messages, Closure $callback, array $properties = []): bool
     {
         // We override the queue away from default properties since we're going to
         // create an anonymous, exclusive queue to accept responses, we still permit
@@ -148,7 +148,7 @@ class Amqp
             'queue_properties' => ['x-ha-policy' => ['S', 'all'], 'x-queue-type' => ['S', 'classic']],
         ]))->request(
             $route,
-            is_array($messages) ? $messages : [$messages],
+            $messages,
             $callback,
             $properties
         );
