@@ -88,7 +88,7 @@ class AmqpChannel
      * @param string $route
      * @param AMQPMessage $message
      */
-    public function publish($route, $message)
+    public function publish(string $route, AMQPMessage $message)
     {
         // Before publishing the retry counter should be re-set
         $this->retry = $this->properties['reconnect_attempts'] ?? 3;
@@ -203,7 +203,7 @@ class AmqpChannel
      * @param Closure $callback
      * @return bool
      */
-    public function request($route, $messages, $callback, $properties = [])
+    public function request(string $route, array $messages, Closure $callback, array $properties = [])
     {
         // Set up the queue we're going to listen to responses on
         $this->declareQueue();
@@ -317,7 +317,7 @@ class AmqpChannel
      *
      * @param AMQPMessage $message
      */
-    public function reject(AMQPMessage $message, $requeue = false)
+    public function reject(AMQPMessage $message, bool $requeue = false)
     {
         try {
             $message->getChannel()->basic_reject($message->get('delivery_tag'), $requeue);
@@ -497,7 +497,7 @@ class AmqpChannel
      * Closes the connection and reestablishes a valid channel
      * @param boolean $intentionalReconnection
      */
-    public function reconnect($intentionalReconnection = false)
+    public function reconnect(bool $intentionalReconnection = false)
     {
         try {
             if ($this->channel->is_consuming()) {
