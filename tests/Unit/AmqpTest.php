@@ -218,6 +218,7 @@ class AmqpTest extends BaseTest
             [],
         )->andReturnUsing(function ($route, $messages, $callback, $properties) use ($mockedResponseMessage) {
             $callback($mockedResponseMessage);
+            return true;
         });
         $this->assertEquals($response, $mockedFacade->requestWithResponse(
             $route,
