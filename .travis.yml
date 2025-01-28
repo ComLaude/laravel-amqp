@@ -4,11 +4,9 @@ language: php
 jobs:
   include:
     - php: 7.4
-      dist: xenial
     - php: 8.0
-      dist: focal
     - php: 8.1
-      dist: focal
+    - php: 8.3
 
 services:
   - rabbitmq

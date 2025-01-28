@@ -18,7 +18,7 @@ class AmqpFactory
      * @param array $properties
      * @return AmqpChannel
      */
-    public static function create(array $properties = [], array $base = null): AmqpChannel
+    public static function create(array $properties = [], ?array $base = null): AmqpChannel
     {
         // Merge properties with config
         if (empty($base)) {
@@ -38,7 +38,7 @@ class AmqpFactory
      * @param array $properties
      * @return AmqpChannel
      */
-    public static function createTemporary(array $properties = [], array $base = null): AmqpChannel
+    public static function createTemporary(array $properties = [], ?array $base = null): AmqpChannel
     {
         // Merge properties with config
         if (empty($base)) {
@@ -47,7 +47,7 @@ class AmqpFactory
         return new AmqpChannel(array_merge($base, $properties));
     }
 
-    public static function clear($properties): void
+    public static function clear(array $properties): void
     {
         if (! empty($properties['exchange']) && ! empty($properties['queue'])) {
             unset(self::$channels[$properties['exchange'] . '.' . $properties['queue']]);
