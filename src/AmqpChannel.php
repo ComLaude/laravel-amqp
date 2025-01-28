@@ -378,7 +378,7 @@ class AmqpChannel
     /**
      * Processes connection configuration before a connection has opened fully
      */
-    private function preConnectionEstablished(): void
+    protected function preConnectionEstablished(): void
     {
         if ($this->signaller) {
             $this->signaller->unregister();
@@ -388,7 +388,7 @@ class AmqpChannel
     /**
      * Processes connection configuration after a connection has opened fully
      */
-    private function postConnectionEstablished(): void
+    protected function postConnectionEstablished(): void
     {
         $this->connection->set_close_on_destruct(true);
         if ($this->properties['register_pcntl_heartbeat_sender'] ?? false) {
@@ -400,7 +400,7 @@ class AmqpChannel
     /**
      * Declares an exchange on the connection
      */
-    private function declareExchange(): AmqpChannel
+    protected function declareExchange(): AmqpChannel
     {
         if (! empty($this->properties['exchange'])) {
             $this->channel->exchange_declare(
