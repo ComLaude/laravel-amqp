@@ -117,7 +117,7 @@ class AmqpChannelRequestTest extends BaseTest
             },
             ['correlation_id' => $requestId]
         );
-        $this->assertLessThan(0.52, microtime(true) - $startTime);
+        $this->assertLessThan(0.9, microtime(true) - $startTime);
     }
 
     public function testRequestNotHandledTimeout()

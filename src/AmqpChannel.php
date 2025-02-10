@@ -55,9 +55,9 @@ class AmqpChannel
     /**
      * Returns current connection
      *
-     * @return AMQPConnection
+     * @return AbstractConnection
      */
-    public function getConnection()
+    public function getConnection(): ?\PhpAmqpLib\Connection\AbstractConnection
     {
         return $this->connection;
     }
@@ -67,7 +67,7 @@ class AmqpChannel
      *
      * @return AMQPChannel
      */
-    public function getChannel()
+    public function getChannel(): ?\PhpAmqpLib\Channel\AMQPChannel
     {
         return $this->channel;
     }
@@ -77,7 +77,7 @@ class AmqpChannel
      *
      * @return array
      */
-    public function getQueue()
+    public function getQueue(): ?array
     {
         return $this->queue;
     }
@@ -88,7 +88,7 @@ class AmqpChannel
      * @param string $route
      * @param AMQPMessage $message
      */
-    public function publish($route, $message)
+    public function publish(string $route, AMQPMessage $message): AmqpChannel
     {
         // Before publishing the retry counter should be re-set
         $this->retry = $this->properties['reconnect_attempts'] ?? 3;
@@ -118,7 +118,7 @@ class AmqpChannel
      * @return bool
      * @throws \Exception
      */
-    public function consume(Closure $callback)
+    public function consume(Closure $callback): bool
     {
         $this->declareQueue();
 
@@ -141,7 +141,11 @@ class AmqpChannel
                     'correlation_id' => $message->get('correlation_id') . '_accepted',
                 ]));
                 // Publish response to the original job, using return value from handler
-                return $responseChannel->publish($message->get('reply_to'), new AMQPMessage($callback($message), [
+                $callbackResult = $callback($message);
+                if (! is_string($callbackResult)) {
+                    $callbackResult = json_encode($callbackResult);
+                }
+                return $responseChannel->publish($message->get('reply_to'), new AMQPMessage($callbackResult, [
                     'correlation_id' => $message->get('correlation_id') . '_handled',
                 ]));
             }
@@ -199,7 +203,7 @@ class AmqpChannel
      * @param Closure $callback
      * @return bool
      */
-    public function request($route, $messages, $callback, $properties = [])
+    public function request(string $route, array $messages, Closure $callback, array $properties = []): bool
     {
         // Set up the queue we're going to listen to responses on
         $this->declareQueue();
@@ -263,7 +267,7 @@ class AmqpChannel
      *
      * @param AMQPMessage $message
      */
-    public function redeliveryCheckAndSkip(AMQPMessage $message)
+    public function redeliveryCheckAndSkip(AMQPMessage $message): bool
     {
         if (! empty($this->lastAcknowledge)) {
             foreach ($this->lastAcknowledge as $index => $item) {
@@ -291,7 +295,7 @@ class AmqpChannel
      *
      * @param AMQPMessage $message
      */
-    public function acknowledge(AMQPMessage $message)
+    public function acknowledge(AMQPMessage $message): void
     {
         try {
             $message->getChannel()->basic_ack($message->get('delivery_tag'));
@@ -313,7 +317,7 @@ class AmqpChannel
      *
      * @param AMQPMessage $message
      */
-    public function reject(AMQPMessage $message, $requeue = false)
+    public function reject(AMQPMessage $message, bool $requeue = false): void
     {
         try {
             $message->getChannel()->basic_reject($message->get('delivery_tag'), $requeue);
@@ -326,7 +330,7 @@ class AmqpChannel
         }
     }
 
-    public function disconnect()
+    public function disconnect(): void
     {
         AmqpFactory::clear($this->properties);
         try {
@@ -345,7 +349,7 @@ class AmqpChannel
     /**
      * Establishes a connection to a broker and creates a channel
      */
-    public function connect()
+    public function connect(): AmqpChannel
     {
         $this->connection = new AMQPStreamConnection(
             $this->properties['host'],
@@ -374,7 +378,7 @@ class AmqpChannel
     /**
      * Processes connection configuration before a connection has opened fully
      */
-    private function preConnectionEstablished()
+    protected function preConnectionEstablished(): void
     {
         if ($this->signaller) {
             $this->signaller->unregister();
@@ -384,7 +388,7 @@ class AmqpChannel
     /**
      * Processes connection configuration after a connection has opened fully
      */
-    private function postConnectionEstablished()
+    protected function postConnectionEstablished(): void
     {
         $this->connection->set_close_on_destruct(true);
         if ($this->properties['register_pcntl_heartbeat_sender'] ?? false) {
@@ -396,7 +400,7 @@ class AmqpChannel
     /**
      * Declares an exchange on the connection
      */
-    private function declareExchange()
+    protected function declareExchange(): AmqpChannel
     {
         if (! empty($this->properties['exchange'])) {
             $this->channel->exchange_declare(
@@ -430,7 +434,7 @@ class AmqpChannel
     /**
      * Declares a queue on the channel and adds configured bindings
      */
-    public function declareQueue()
+    public function declareQueue(): AmqpChannel
     {
         $this->queue = $this->channel->queue_declare(
             $this->properties['queue'],
@@ -493,7 +497,7 @@ class AmqpChannel
      * Closes the connection and reestablishes a valid channel
      * @param boolean $intentionalReconnection
      */
-    public function reconnect($intentionalReconnection = false)
+    public function reconnect(bool $intentionalReconnection = false): void
     {
         try {
             if ($this->channel->is_consuming()) {

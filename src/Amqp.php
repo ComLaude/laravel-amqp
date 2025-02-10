@@ -18,7 +18,7 @@ class Amqp
     /**
      * Globally disables publishing messages
      */
-    public function disable()
+    public function disable(): void
     {
         self::$publishingEnabled = false;
     }
@@ -26,7 +26,7 @@ class Amqp
     /**
      * Globally enables publishing messages
      */
-    public function enable()
+    public function enable(): void
     {
         self::$publishingEnabled = true;
     }
@@ -34,7 +34,7 @@ class Amqp
     /**
      * Check if globally enabled
      */
-    public function isEnabled()
+    public function isEnabled(): bool
     {
         return self::$publishingEnabled;
     }
@@ -47,7 +47,7 @@ class Amqp
      * @param array $properties
      * @param array $messageProperties
      */
-    public function publish(string $route, string $message, array $properties = [], array $messageProperties = [])
+    public function publish(string $route, string $message, array $properties = [], array $messageProperties = []): void
     {
         if (! $this->isEnabled()) {
             return;
@@ -65,12 +65,27 @@ class Amqp
      * @param string $message
      * @param array $properties
      */
-    public function publishPersistent(string $route, string $message, array $properties = [])
+    public function publishPersistent(string $route, string $message, array $properties = []): void
     {
         if (! $this->isEnabled()) {
             return;
         }
-        return $this->publish($route, $message, $properties, ['delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT]);
+        $this->publish($route, $message, $properties, ['delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT]);
+    }
+
+    /**
+     * Publishes a priority message to the queue, rabbitmq 4.0.0+ required on quorum queues
+     *
+     * @param string $route
+     * @param string $message
+     * @param array $properties
+     */
+    public function publishPriority(string $route, string $message, array $properties = []): void
+    {
+        if (! $this->isEnabled()) {
+            return;
+        }
+        $this->publish($route, $message, $properties, ['priority' => 5]);
     }
 
     /**
@@ -80,7 +95,7 @@ class Amqp
      * @param array $properties
      * @throws Exception\Configuration
      */
-    public function consume(Closure $callback, array $properties = [])
+    public function consume(Closure $callback, array $properties = []): void
     {
         AmqpFactory::create($properties)->consume($callback);
     }
@@ -91,7 +106,7 @@ class Amqp
      * @param AMQPMessage $message
      * @param array $properties
      */
-    public function acknowledge(AMQPMessage $message, array $properties = [])
+    public function acknowledge(AMQPMessage $message, array $properties = []): void
     {
         AmqpFactory::create($properties)->acknowledge($message);
     }
@@ -103,7 +118,7 @@ class Amqp
      * @param bool $requeue
      * @param array $properties
      */
-    public function reject(AMQPMessage $message, bool $requeue = false, array $properties = [])
+    public function reject(AMQPMessage $message, bool $requeue = false, array $properties = []): void
     {
         AmqpFactory::create($properties)->reject($message, $requeue);
     }
@@ -117,7 +132,7 @@ class Amqp
      * @param Closure $callback
      * @param array $properties
      */
-    public function request(string $route, array $messages, Closure $callback, array $properties = [])
+    public function request(string $route, array $messages, Closure $callback, array $properties = []): bool
     {
         // We override the queue away from default properties since we're going to
         // create an anonymous, exclusive queue to accept responses, we still permit
@@ -133,7 +148,7 @@ class Amqp
             'queue_properties' => ['x-ha-policy' => ['S', 'all'], 'x-queue-type' => ['S', 'classic']],
         ]))->request(
             $route,
-            is_array($messages) ? $messages : [$messages],
+            $messages,
             $callback,
             $properties
         );
@@ -147,7 +162,7 @@ class Amqp
      * @param string $message
      * @param array $properties
      */
-    public function requestWithResponse(string $route, string $message, array $properties = [])
+    public function requestWithResponse(string $route, string $message, array $properties = []): ?string
     {
         $response = null;
         $this->request(
@@ -159,5 +174,23 @@ class Amqp
             $properties,
         );
         return $response;
+    }
+
+    /**
+     * Returns a count of messages, consumers on the queue
+     *
+     * @param string $queue
+     * @param array $properties
+     */
+    public function count(string $queue, array $properties = []): array
+    {
+        $count = AmqpFactory::createTemporary(array_merge($properties, [
+            'queue' => $queue,
+            'queue_passive' => true,
+        ]))->declareQueue()->getQueue();
+        return [
+            'messages' => $count[1],
+            'consumers' => $count[2],
+        ];
     }
 }
