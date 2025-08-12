@@ -140,6 +140,17 @@ class AmqpChannel
                 $responseChannel->publish($message->get('reply_to'), new AMQPMessage('', [
                     'correlation_id' => $message->get('correlation_id') . '_accepted',
                 ]));
+                // Before working on it, make sure that the requestor is still listening
+                try {
+                    AmqpFactory::createTemporary([
+                        'queue' => $message->get('reply_to'),
+                        'queue_passive' => true,
+                    ])->declareQueue()->getQueue();
+                } catch (AMQPProtocolChannelException $e) {
+                    // If the requestor is not listening, we just ack and ignore the message
+                    $this->acknowledge($message);
+                    return;
+                }
                 // Publish response to the original job, using return value from handler
                 $callbackResult = $callback($message);
                 if (! is_string($callbackResult)) {

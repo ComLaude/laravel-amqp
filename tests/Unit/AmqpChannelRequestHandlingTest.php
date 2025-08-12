@@ -122,4 +122,29 @@ class AmqpChannelRequestHandlingTest extends BaseTest
 
         $this->assertEquals(2, $counter);
     }
+
+    public function testRequestServerDropsMessageDueToDisconnectedListener()
+    {
+        $correlationId = 'some_random_string';
+        $message = new AMQPMessage('request from client which stopped listening', [
+            'reply_to' => 'queue_that_does_not_exist',
+            'correlation_id' => $correlationId,
+        ]);
+
+        // Publish the job from requestor
+        $this->requestor->publish('example.route.key', $message);
+
+        // Handle the job from the server
+        $this->master->consume(function ($consumedMessage) use ($message) {
+            $this->fail('This should never be called, as the reply_to queue does not exist');
+        });
+
+        // Check the response to the requestor is as expected
+        $counter = 0;
+        $this->requestor->consume(function ($consumedMessage) use ($message, &$counter) {
+            $counter++;
+            $this->fail('This should never be called, as the reply_to queue does not exist');
+        });
+        $this->assertEquals(0, $counter);
+    }
 }
