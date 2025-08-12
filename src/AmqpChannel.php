@@ -141,16 +141,18 @@ class AmqpChannel
                     'correlation_id' => $message->get('correlation_id') . '_accepted',
                 ]));
                 // Before working on it, make sure that the requestor is still listening
-                try {
-                    AmqpFactory::createTemporary([
-                        'queue' => $message->get('reply_to'),
-                        'queue_passive' => true,
-                    ])->declareQueue()->getQueue();
-                } catch (AMQPProtocolChannelException $e) {
-                    // If the requestor queue no longer exists, we can acknowledge the message
-                    if (strpos($e->getMessage(), 'NOT_FOUND') !== false) {
-                        $this->acknowledge($message);
-                        return;
+                if (! ($this->properties['request_must_be_handled'] ?? false)) {
+                    try {
+                        AmqpFactory::createTemporary([
+                            'queue' => $message->get('reply_to'),
+                            'queue_passive' => true,
+                        ])->declareQueue()->getQueue();
+                    } catch (AMQPProtocolChannelException $e) {
+                        // If the requestor queue no longer exists, we can acknowledge the message
+                        if (strpos($e->getMessage(), 'NOT_FOUND') !== false) {
+                            $this->acknowledge($message);
+                            return;
+                        }
                     }
                 }
                 // Publish response to the original job, using return value from handler
