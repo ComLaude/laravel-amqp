@@ -147,9 +147,11 @@ class AmqpChannel
                         'queue_passive' => true,
                     ])->declareQueue()->getQueue();
                 } catch (AMQPProtocolChannelException $e) {
-                    // If the requestor is not listening, we just ack and ignore the message
-                    $this->acknowledge($message);
-                    return;
+                    // If the requestor queue no longer exists, we can acknowledge the message
+                    if (strpos($e->getMessage(), 'NOT_FOUND') !== false) {
+                        $this->acknowledge($message);
+                        return;
+                    }
                 }
                 // Publish response to the original job, using return value from handler
                 $callbackResult = $callback($message);
