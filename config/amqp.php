@@ -66,6 +66,7 @@ return [
             'persistent_restart_period' => 0,        // seconds
             'request_accepted_timeout'  => 0.5,      // seconds in decimal accepted
             'request_handled_timeout'   => 5,        // seconds in decimal accepted
+            'request_must_be_handled'   => false,    // if true, the request must be handled by the consumer even if the requestor is not listening
 
             'qos'                   => true,
             'qos_prefetch_size'     => 0,
