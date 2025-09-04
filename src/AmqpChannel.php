@@ -288,6 +288,7 @@ class AmqpChannel
      */
     public function redeliveryCheckAndSkip(AMQPMessage $message): bool
     {
+        AmqpLog::info('In redelivery check, ack count: ' . count($this->lastAcknowledge));
         if (! empty($this->lastAcknowledge)) {
             foreach ($this->lastAcknowledge as $index => $item) {
                 AmqpLog::info('Redelivery Loop started');
@@ -529,19 +530,29 @@ class AmqpChannel
      */
     public function reconnect(bool $intentionalReconnection = false): void
     {
+        AmqpLog::info('Starting Reconnect, ack count: ' . count($this->lastAcknowledge));
         try {
             if ($this->channel->is_consuming()) {
+                AmqpLog::info('ack count1: ' . count($this->lastAcknowledge));
                 $this->channel->close();
+                AmqpLog::info('ack count2: ' . count($this->lastAcknowledge));
             }
             $this->disconnect();
+            AmqpLog::info('ack count3: ' . count($this->lastAcknowledge));
         } catch (AMQPProtocolChannelException | AMQPRuntimeException $e) {
             // just continue with reconnect
+            AmqpLog::info('ack count4: ' . count($this->lastAcknowledge));
         }
 
+        AmqpLog::info('ack count5: ' . count($this->lastAcknowledge));
         $this->preConnectionEstablished();
+        AmqpLog::info('ack count6: ' . count($this->lastAcknowledge));
         $this->connect();
+        AmqpLog::info('ack count7: ' . count($this->lastAcknowledge));
         $this->declareExchange();
+        AmqpLog::info('ack count8: ' . count($this->lastAcknowledge));
         $this->postConnectionEstablished();
+        AmqpLog::info('Finished reconnecting, ack count9: ' . count($this->lastAcknowledge));
         if (! $intentionalReconnection) {
             throw new AmqpChannelSilentlyRestartedException;
         }
