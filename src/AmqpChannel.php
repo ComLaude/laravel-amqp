@@ -3,6 +3,7 @@ namespace ComLaude\Amqp;
 
 use Closure;
 use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
+use ComLaude\Api\Console\Commands\Amqp\AmqpLog;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Connection\Heartbeat\PCNTLHeartbeatSender;
 use PhpAmqpLib\Exception\AMQPChannelClosedException;
@@ -131,7 +132,10 @@ class AmqpChannel
         }
 
         $channelCallback = function ($message) use ($callback) {
-            if ($message->get('redelivered') === true && $this->redeliveryCheckAndSkip($message)) {
+            $redeliveryCheck = $this->redeliveryCheckAndSkip($message);
+            AmqpLog::info('Redelivery vars: ' . json_encode([$message->get('redelivered'), $redeliveryCheck]));
+            if ($message->get('redelivered') === true && $redeliveryCheck) {
+                AmqpLog::info('redelivered, nothing to process');
                 return;
             }
             if ($message->has('reply_to') && $message->has('correlation_id')) {
@@ -140,21 +144,6 @@ class AmqpChannel
                 $responseChannel->publish($message->get('reply_to'), new AMQPMessage('', [
                     'correlation_id' => $message->get('correlation_id') . '_accepted',
                 ]));
-                // Before working on it, make sure that the requestor is still listening
-                if (! ($this->properties['request_must_be_handled'] ?? false)) {
-                    try {
-                        AmqpFactory::createTemporary([
-                            'queue' => $message->get('reply_to'),
-                            'queue_passive' => true,
-                        ])->declareQueue()->getQueue();
-                    } catch (AMQPProtocolChannelException $e) {
-                        // If the requestor queue no longer exists, we can acknowledge the message
-                        if (strpos($e->getMessage(), 'NOT_FOUND') !== false) {
-                            $this->acknowledge($message);
-                            return;
-                        }
-                    }
-                }
                 // Publish response to the original job, using return value from handler
                 $callbackResult = $callback($message);
                 if (! is_string($callbackResult)) {
@@ -286,8 +275,12 @@ class AmqpChannel
     {
         if (! empty($this->lastAcknowledge)) {
             foreach ($this->lastAcknowledge as $index => $item) {
+                AmqpLog::info('Redelivery Loop started');
+                AmqpLog::info(json_encode([$item->body, $message->body]));
+                AmqpLog::info(json_encode([$item->body === $message->body, $item->get('routing_key') === $message->get('routing_key')]));
                 if ($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
                     unset($this->lastAcknowledge[$index]);
+                    AmqpLog::info('acknowledged in redelivery check');
                     $this->acknowledge($message);
                     return true;
                 }
@@ -313,16 +306,23 @@ class AmqpChannel
     public function acknowledge(AMQPMessage $message): void
     {
         try {
+            AmqpLog::info('In Acknowledging try');
             $message->getChannel()->basic_ack($message->get('delivery_tag'));
-
+            AmqpLog::info('In Acknowledging try finished');
             if ($message->body === 'quit') {
                 $message->getChannel()->basic_cancel($this->tag);
             }
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+            AmqpLog::info(get_class($e));
+            AmqpLog::info('properties: ' . ($this->properties['queue_acknowledge_is_final'] ?? true));
             if ($this->properties['queue_acknowledge_is_final'] ?? true) {
                 // We cache the acknowledge just in case it is redelivered
+                AmqpLog::info('added to ack cache');
                 $this->lastAcknowledge[] = $message;
+                AmqpLog::info('Ack array now: ' . json_encode($this->lastAcknowledge));
+                AmqpLog::info('Ack array count: ' . count($this->lastAcknowledge));
             }
+            AmqpLog::info('reconnecting');
             $this->reconnect();
         }
     }
