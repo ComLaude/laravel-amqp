@@ -28,7 +28,6 @@ class AmqpChannel
     private $queue;
     static $lastAcknowledge;
     static $lastReject;
-    private $counter = 0;
 
     /**
      * Number of times the connection will be retried
@@ -327,11 +326,6 @@ class AmqpChannel
     public function acknowledge(AMQPMessage $message): void
     {
         try {
-            $this->counter++;
-            if ($this->counter == 1) {
-                throw new AMQPHeartbeatMissedException();
-            }
-
             AmqpLog::info('In Acknowledging try');
             $message->getChannel()->basic_ack($message->get('delivery_tag'));
             AmqpLog::info('In Acknowledging try finished');
