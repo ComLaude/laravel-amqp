@@ -204,13 +204,14 @@ class AmqpChannel
             $restart = false;
         } catch (AMQPProtocolChannelException $e) {
             $restart = true;
-            $this->reconnect(true);
         } catch (AmqpChannelSilentlyRestartedException $e) {
             AmqpLog::info('Silently restarted exception caught in consume');
             $restart = true;
         }
 
         if ($restart) {
+            AmqpLog::info('Reconnecting in consume');
+            $this->reconnect(true);
             AmqpLog::info('Reconsuming');
             return $this->consume($callback);
         }
