@@ -26,8 +26,9 @@ class AmqpChannel
     private $signaller;
     private $channel;
     private $queue;
-    private $lastAcknowledge;
-    private $lastReject;
+    static $lastAcknowledge;
+    static $lastReject;
+    private $counter = 0;
 
     /**
      * Number of times the connection will be retried
@@ -43,8 +44,8 @@ class AmqpChannel
     {
         $this->properties = $properties;
         $this->retry = $properties['reconnect_attempts'] ?? 3;
-        $this->lastAcknowledge = [];
-        $this->lastReject = [];
+        self::$lastAcknowledge = [];
+        self::$lastReject = [];
         $this->tag = ($this->properties['consumer_tag'] ?? 'laravel-amqp-' . config('app.name')) . uniqid();
 
         $this->preConnectionEstablished();
@@ -202,12 +203,16 @@ class AmqpChannel
             } while (count($this->channel->callbacks));
         } catch (AMQPTimeoutException $e) {
             $restart = false;
-        } catch (AMQPProtocolChannelException | AmqpChannelSilentlyRestartedException $e) {
+        } catch (AMQPProtocolChannelException $e) {
+            $restart = true;
+            $this->reconnect(true);
+        } catch (AmqpChannelSilentlyRestartedException $e) {
+            AmqpLog::info('Silently restarted exception caught in consume');
             $restart = true;
         }
 
         if ($restart) {
-            $this->reconnect(true);
+            AmqpLog::info('Reconsuming');
             return $this->consume($callback);
         }
 
@@ -288,24 +293,24 @@ class AmqpChannel
      */
     public function redeliveryCheckAndSkip(AMQPMessage $message): bool
     {
-        AmqpLog::info('In redelivery check, ack count: ' . count($this->lastAcknowledge));
-        if (! empty($this->lastAcknowledge)) {
-            foreach ($this->lastAcknowledge as $index => $item) {
+        AmqpLog::info('In redelivery check, ack count: ' . count(self::$lastAcknowledge));
+        if (! empty(self::$lastAcknowledge)) {
+            foreach (self::$lastAcknowledge as $index => $item) {
                 AmqpLog::info('Redelivery Loop started');
                 AmqpLog::info(json_encode([$item->body, $message->body]));
                 AmqpLog::info(json_encode([$item->body === $message->body, $item->get('routing_key') === $message->get('routing_key')]));
                 if ($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
-                    unset($this->lastAcknowledge[$index]);
+                    unset(self::$lastAcknowledge[$index]);
                     AmqpLog::info('acknowledged in redelivery check');
                     $this->acknowledge($message);
                     return true;
                 }
             }
         }
-        if (! empty($this->lastReject)) {
-            foreach ($this->lastReject as $index =>$item) {
+        if (! empty(self::$lastReject)) {
+            foreach (self::$lastReject as $index =>$item) {
                 if ($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
-                    unset($this->lastReject[$index]);
+                    unset(self::$lastReject[$index]);
                     $this->reject($message, $item[1]);
                     return true;
                 }
@@ -322,6 +327,11 @@ class AmqpChannel
     public function acknowledge(AMQPMessage $message): void
     {
         try {
+            $this->counter++;
+            if ($this->counter == 1) {
+                throw new AMQPHeartbeatMissedException();
+            }
+
             AmqpLog::info('In Acknowledging try');
             $message->getChannel()->basic_ack($message->get('delivery_tag'));
             AmqpLog::info('In Acknowledging try finished');
@@ -334,9 +344,9 @@ class AmqpChannel
             if ($this->properties['queue_acknowledge_is_final'] ?? true) {
                 // We cache the acknowledge just in case it is redelivered
                 AmqpLog::info('added to ack cache');
-                $this->lastAcknowledge[] = $message;
-                AmqpLog::info('Ack array now: ' . json_encode($this->lastAcknowledge));
-                AmqpLog::info('Ack array count: ' . count($this->lastAcknowledge));
+                self::$lastAcknowledge[] = $message;
+                AmqpLog::info('Ack array now: ' . json_encode(self::$lastAcknowledge));
+                AmqpLog::info('Ack array count: ' . count(self::$lastAcknowledge));
             }
             AmqpLog::info('reconnecting');
             $this->reconnect();
@@ -355,7 +365,7 @@ class AmqpChannel
         } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             if ($this->properties['queue_reject_is_final'] ?? true) {
                 // We cache the reject just in case it is redelivered
-                $this->lastReject[] = [$message, $requeue];
+                self::$lastReject[] = [$message, $requeue];
             }
             $this->reconnect();
         }
@@ -530,29 +540,29 @@ class AmqpChannel
      */
     public function reconnect(bool $intentionalReconnection = false): void
     {
-        AmqpLog::info('Starting Reconnect, ack count: ' . count($this->lastAcknowledge));
+        AmqpLog::info('Starting Reconnect, ack count: ' . count(self::$lastAcknowledge));
         try {
             if ($this->channel->is_consuming()) {
-                AmqpLog::info('ack count1: ' . count($this->lastAcknowledge));
+                AmqpLog::info('ack count1: ' . count(self::$lastAcknowledge));
                 $this->channel->close();
-                AmqpLog::info('ack count2: ' . count($this->lastAcknowledge));
+                AmqpLog::info('ack count2: ' . count(self::$lastAcknowledge));
             }
             $this->disconnect();
-            AmqpLog::info('ack count3: ' . count($this->lastAcknowledge));
+            AmqpLog::info('ack count3: ' . count(self::$lastAcknowledge));
         } catch (AMQPProtocolChannelException | AMQPRuntimeException $e) {
             // just continue with reconnect
-            AmqpLog::info('ack count4: ' . count($this->lastAcknowledge));
+            AmqpLog::info('ack count4: ' . count(self::$lastAcknowledge));
         }
 
-        AmqpLog::info('ack count5: ' . count($this->lastAcknowledge));
+        AmqpLog::info('ack count5: ' . count(self::$lastAcknowledge));
         $this->preConnectionEstablished();
-        AmqpLog::info('ack count6: ' . count($this->lastAcknowledge));
+        AmqpLog::info('ack count6: ' . count(self::$lastAcknowledge));
         $this->connect();
-        AmqpLog::info('ack count7: ' . count($this->lastAcknowledge));
+        AmqpLog::info('ack count7: ' . count(self::$lastAcknowledge));
         $this->declareExchange();
-        AmqpLog::info('ack count8: ' . count($this->lastAcknowledge));
+        AmqpLog::info('ack count8: ' . count(self::$lastAcknowledge));
         $this->postConnectionEstablished();
-        AmqpLog::info('Finished reconnecting, ack count9: ' . count($this->lastAcknowledge));
+        AmqpLog::info('Finished reconnecting, ack count9: ' . count(self::$lastAcknowledge));
         if (! $intentionalReconnection) {
             throw new AmqpChannelSilentlyRestartedException;
         }
