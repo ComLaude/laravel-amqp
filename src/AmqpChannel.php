@@ -198,7 +198,7 @@ class AmqpChannel
             } while (count($this->channel->callbacks));
         } catch (AMQPTimeoutException $e) {
             $restart = false;
-        } catch (AMQPProtocolChannelException | AmqpChannelSilentlyRestartedException  $e) {
+        } catch (AMQPProtocolChannelException | AmqpChannelSilentlyRestartedException $e) {
             $restart = true;
         }
 
