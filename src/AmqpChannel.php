@@ -3,12 +3,10 @@ namespace ComLaude\Amqp;
 
 use Closure;
 use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
-use ComLaude\Api\Console\Commands\Amqp\AmqpLog;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Connection\Heartbeat\PCNTLHeartbeatSender;
 use PhpAmqpLib\Exception\AMQPChannelClosedException;
 use PhpAmqpLib\Exception\AMQPConnectionClosedException;
-use PhpAmqpLib\Exception\AMQPConnectionException;
 use PhpAmqpLib\Exception\AMQPHeartbeatMissedException;
 use PhpAmqpLib\Exception\AMQPProtocolChannelException;
 use PhpAmqpLib\Exception\AMQPRuntimeException;
@@ -20,14 +18,15 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class AmqpChannel
 {
+    public static $lastAcknowledge;
+    public static $lastReject;
+
     private $properties;
     private $tag;
     private $connection;
     private $signaller;
     private $channel;
     private $queue;
-    static $lastAcknowledge;
-    static $lastReject;
 
     /**
      * Number of times the connection will be retried
@@ -101,7 +100,7 @@ class AmqpChannel
                 // Fire the basic command and return the result to the caller
                 $this->channel->basic_publish($message, $this->properties['exchange'], $route);
                 break;
-            } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+            } catch (AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
                 if (--$this->retry < 0) {
                     throw $e;
                 }
@@ -132,10 +131,7 @@ class AmqpChannel
         }
 
         $channelCallback = function ($message) use ($callback) {
-            $redeliveryCheck = $this->redeliveryCheckAndSkip($message);
-            AmqpLog::info('Redelivery vars: ' . json_encode([$message->get('redelivered'), $redeliveryCheck]));
-            if ($message->get('redelivered') === true && $redeliveryCheck) {
-                AmqpLog::info('redelivered, nothing to process');
+            if ($message->get('redelivered') === true && $this->redeliveryCheckAndSkip($message)) {
                 return;
             }
             if ($message->has('reply_to') && $message->has('correlation_id')) {
@@ -202,17 +198,12 @@ class AmqpChannel
             } while (count($this->channel->callbacks));
         } catch (AMQPTimeoutException $e) {
             $restart = false;
-        } catch (AMQPProtocolChannelException $e) {
-            $restart = true;
-        } catch (AmqpChannelSilentlyRestartedException $e) {
-            AmqpLog::info('Silently restarted exception caught in consume');
+        } catch (AMQPProtocolChannelException | AmqpChannelSilentlyRestartedException  $e) {
             $restart = true;
         }
 
         if ($restart) {
-            AmqpLog::info('Reconnecting in consume');
             $this->reconnect(true);
-            AmqpLog::info('Reconsuming');
             return $this->consume($callback);
         }
 
@@ -293,15 +284,10 @@ class AmqpChannel
      */
     public function redeliveryCheckAndSkip(AMQPMessage $message): bool
     {
-        AmqpLog::info('In redelivery check, ack count: ' . count(self::$lastAcknowledge));
         if (! empty(self::$lastAcknowledge)) {
             foreach (self::$lastAcknowledge as $index => $item) {
-                AmqpLog::info('Redelivery Loop started');
-                AmqpLog::info(json_encode([$item->body, $message->body]));
-                AmqpLog::info(json_encode([$item->body === $message->body, $item->get('routing_key') === $message->get('routing_key')]));
-                if ($item->body === $message->body && $item->get('routing_key') === $message->get('routing_key')) {
+                if ($item->body === $message->getBody() && $item->get('routing_key') === $message->get('routing_key')) {
                     unset(self::$lastAcknowledge[$index]);
-                    AmqpLog::info('acknowledged in redelivery check');
                     $this->acknowledge($message);
                     return true;
                 }
@@ -309,7 +295,7 @@ class AmqpChannel
         }
         if (! empty(self::$lastReject)) {
             foreach (self::$lastReject as $index =>$item) {
-                if ($item[0]->body === $message->body && $item[0]->get('routing_key') === $message->get('routing_key')) {
+                if ($item[0]->body === $message->getBody() && $item[0]->get('routing_key') === $message->get('routing_key')) {
                     unset(self::$lastReject[$index]);
                     $this->reject($message, $item[1]);
                     return true;
@@ -327,23 +313,15 @@ class AmqpChannel
     public function acknowledge(AMQPMessage $message): void
     {
         try {
-            AmqpLog::info('In Acknowledging try');
             $message->getChannel()->basic_ack($message->get('delivery_tag'));
-            AmqpLog::info('In Acknowledging try finished');
-            if ($message->body === 'quit') {
+            if ($message->getBody() === 'quit') {
                 $message->getChannel()->basic_cancel($this->tag);
             }
-        } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-            AmqpLog::info(get_class($e));
-            AmqpLog::info('properties: ' . ($this->properties['queue_acknowledge_is_final'] ?? true));
+        } catch (AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             if ($this->properties['queue_acknowledge_is_final'] ?? true) {
                 // We cache the acknowledge just in case it is redelivered
-                AmqpLog::info('added to ack cache');
                 self::$lastAcknowledge[] = $message;
-                AmqpLog::info('Ack array now: ' . json_encode(self::$lastAcknowledge));
-                AmqpLog::info('Ack array count: ' . count(self::$lastAcknowledge));
             }
-            AmqpLog::info('reconnecting');
             $this->reconnect();
         }
     }
@@ -357,7 +335,7 @@ class AmqpChannel
     {
         try {
             $message->getChannel()->basic_reject($message->get('delivery_tag'), $requeue);
-        } catch (AMQPConnectionException | AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+        } catch (AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
             if ($this->properties['queue_reject_is_final'] ?? true) {
                 // We cache the reject just in case it is redelivered
                 self::$lastReject[] = [$message, $requeue];
@@ -535,29 +513,19 @@ class AmqpChannel
      */
     public function reconnect(bool $intentionalReconnection = false): void
     {
-        AmqpLog::info('Starting Reconnect, ack count: ' . count(self::$lastAcknowledge));
         try {
             if ($this->channel->is_consuming()) {
-                AmqpLog::info('ack count1: ' . count(self::$lastAcknowledge));
                 $this->channel->close();
-                AmqpLog::info('ack count2: ' . count(self::$lastAcknowledge));
             }
             $this->disconnect();
-            AmqpLog::info('ack count3: ' . count(self::$lastAcknowledge));
         } catch (AMQPProtocolChannelException | AMQPRuntimeException $e) {
             // just continue with reconnect
-            AmqpLog::info('ack count4: ' . count(self::$lastAcknowledge));
         }
 
-        AmqpLog::info('ack count5: ' . count(self::$lastAcknowledge));
         $this->preConnectionEstablished();
-        AmqpLog::info('ack count6: ' . count(self::$lastAcknowledge));
         $this->connect();
-        AmqpLog::info('ack count7: ' . count(self::$lastAcknowledge));
         $this->declareExchange();
-        AmqpLog::info('ack count8: ' . count(self::$lastAcknowledge));
         $this->postConnectionEstablished();
-        AmqpLog::info('Finished reconnecting, ack count9: ' . count(self::$lastAcknowledge));
         if (! $intentionalReconnection) {
             throw new AmqpChannelSilentlyRestartedException;
         }
