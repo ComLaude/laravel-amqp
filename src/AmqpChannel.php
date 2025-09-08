@@ -18,8 +18,8 @@ use PhpAmqpLib\Message\AMQPMessage;
  */
 class AmqpChannel
 {
-    public static $lastAcknowledge;
-    public static $lastReject;
+    public static $lastAcknowledge = [];
+    public static $lastReject = [];
 
     private $properties;
     private $tag;
