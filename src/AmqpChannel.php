@@ -368,12 +368,12 @@ class AmqpChannel
         // If TLS is to be used, create the appropriate context
         $context = ($this->properties['use_tls'] ?? false)
             ? ($this->properties['connect_context'] ?? stream_context_create([
-                    'ssl' => [
-                        'verify_peer' => true,
-                        'verify_peer_name' => true,
-                        'allow_self_signed' => false,
-                    ],
-                ]))
+                'ssl' => [
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                    'allow_self_signed' => false,
+                ],
+            ]))
             : null;
         $this->connection = new AMQPStreamConnection(
             $this->properties['host'],
