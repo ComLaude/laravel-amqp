@@ -27,14 +27,20 @@ before_script:
   - pecl install pcov
 
 script:
-  - vendor/bin/phpunit --coverage-text=coverage.txt
+  - vendor/bin/phpunit
   - |
     if [[ $(php -r 'echo PHP_MAJOR_VERSION;') -ge 8 ]]; then
-      COVERAGE=$(grep 'Lines:' coverage.txt | awk '{print $2}' | tr -d '%')
-      if (( $(echo "$COVERAGE < 100" | bc -l) )); then
-        echo "Unit test coverage is less than 100% ($COVERAGE%)" >&2
-        exit 1
-      fi
+      php -r '
+        $xml = simplexml_load_file("clover.xml");
+        $metrics = $xml->project->metrics;
+        $covered = (int)$metrics["coveredstatements"];
+        $total = (int)$metrics["statements"];
+        $coverage = $total ? ($covered / $total) * 100 : 0;
+        if ($coverage < 100) {
+          fwrite(STDERR, sprintf("Unit test coverage is less than 100%% (%.2f%%)\n", $coverage));
+          exit(1);
+        }
+      '
     fi
   - vendor/bin/tlint
   - vendor/bin/php-formatter fix -v --dry-run
