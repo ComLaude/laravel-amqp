@@ -365,6 +365,16 @@ class AmqpChannel
      */
     public function connect(): AmqpChannel
     {
+        // If TLS is to be used, create the appropriate context
+        $context = ($this->properties['use_tls'] ?? false)
+            ? ($this->properties['connect_context'] ?? stream_context_create([
+                    'ssl' => [
+                        'verify_peer' => true,
+                        'verify_peer_name' => true,
+                        'allow_self_signed' => false,
+                    ],
+                ]))
+            : null;
         $this->connection = new AMQPStreamConnection(
             $this->properties['host'],
             $this->properties['port'],
@@ -377,7 +387,7 @@ class AmqpChannel
             $this->properties['connect_options']['locale'] ?? 3,
             $this->properties['connect_options']['connection_timeout'] ?? 3.0,
             $this->properties['connect_options']['read_write_timeout'] ?? 130,
-            $this->properties['connect_options']['context'] ?? null,
+            $context,
             $this->properties['connect_options']['keepalive'] ?? false,
             $this->properties['connect_options']['heartbeat'] ?? 60,
             $this->properties['connect_options']['channel_rpc_timeout'] ?? 0.0,

@@ -28,6 +28,7 @@ return [
             'username'              => '',
             'password'              => '',
             'vhost'                 => '/',
+            'use_tls'               => false,
             'connect_options'       => [],
 
             'register_pcntl_heartbeat_sender' => false, // Signal based heartbeat sender https://github.com/php-amqplib/php-amqplib/pull/815
