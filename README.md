@@ -46,8 +46,32 @@ return [
             'username'              => '',
             'password'              => '',
             'vhost'                 => '/',
+            'use_tls'               => false,
             'connect_options'       => [],
-            'ssl_options'           => [],
+            'connect_context'       => null, // (optional) Stream context for TLS connections https://www.php.net/manual/en/context.ssl.php
+
+            /*
+            |--------------------------------------------------------------------------
+            | An example configuration to connect with TLS, using a custom set of context rules
+            |--------------------------------------------------------------------------
+            |
+            |    'host'                  => 'localhost',
+            |    'port'                  =>  5671,
+            |    'username'              => '',
+            |    'password'              => '',
+            |    'vhost'                 => '/',
+            |    'use_tls'               => true,
+            |    'connect_options'       => [],
+            |    'connect_context'       => stream_context_create([
+            |        'ssl' => [
+            |            'verify_peer' => true,
+            |            'verify_peer_name' => true,
+            |            'allow_self_signed' => false,
+            |        ],
+            |    ]),
+            */
+
+            'register_pcntl_heartbeat_sender' => false, // Signal based heartbeat sender https://github.com/php-amqplib/php-amqplib/pull/815
 
             'exchange'              => 'amq.topic',
             'exchange_type'         => 'topic',
