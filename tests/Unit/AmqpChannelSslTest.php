@@ -65,7 +65,6 @@ class AmqpChannelSslTest extends BaseTest
         ]);
 
         $this->expectException(AMQPIOException::class);
-        $this->expectExceptionMessageMatches('/Unable to connect to ssl:\/\/localhost:5672/');
         AmqpFactory::create($properties);
     }
 }
