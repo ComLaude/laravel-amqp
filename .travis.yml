@@ -27,6 +27,14 @@ before_script:
   - pecl install pcov
 
 script:
-  - vendor/bin/phpunit
+  - vendor/bin/phpunit --coverage-text=coverage.txt
+  - |
+    if [[ $(php -r 'echo PHP_MAJOR_VERSION;') -ge 8 ]]; then
+      COVERAGE=$(grep 'Lines:' coverage.txt | awk '{print $2}' | tr -d '%')
+      if (( $(echo "$COVERAGE < 100" | bc -l) )); then
+        echo "Unit test coverage is less than 100% ($COVERAGE%)" >&2
+        exit 1
+      fi
+    fi
   - vendor/bin/tlint
   - vendor/bin/php-formatter fix -v --dry-run
