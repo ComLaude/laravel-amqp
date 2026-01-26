@@ -4,6 +4,7 @@ namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
+use PhpAmqpLib\Exception\AMQPIOException;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
@@ -32,6 +33,7 @@ class AmqpChannelSslTest extends BaseTest
     public function testCreateAmqpChannelWithoutTls()
     {
         $properties = array_merge($this->properties, [
+            'queue' => 'test1',
             'use_tls' => 0,
             'port' =>  5672,
             'connect_context' => stream_context_create([
@@ -50,6 +52,7 @@ class AmqpChannelSslTest extends BaseTest
     public function testCreateAmqpChannelWithTlsOnNonTlsPort()
     {
         $properties = array_merge($this->properties, [
+            'queue' => 'test2',
             'use_tls' => 1,
             'port' =>  5672,
             'connect_context' => stream_context_create([
@@ -61,7 +64,8 @@ class AmqpChannelSslTest extends BaseTest
             ]),
         ]);
 
+        $this->expectException(AMQPIOException::class);
+        $this->expectExceptionMessageMatches('/Unable to connect to ssl:\/\/localhost:5672/');
         AmqpFactory::create($properties);
-        $this->assertTrue(true);
     }
 }
