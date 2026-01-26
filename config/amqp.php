@@ -30,6 +30,7 @@ return [
             'vhost'                 => '/',
             'use_tls'               => false,
             'connect_options'       => [],
+            'connect_context'       => null, // (optional) Stream context for TLS connections https://www.php.net/manual/en/context.ssl.php
 
             'register_pcntl_heartbeat_sender' => false, // Signal based heartbeat sender https://github.com/php-amqplib/php-amqplib/pull/815
 
