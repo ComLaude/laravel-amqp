@@ -3,7 +3,9 @@
 namespace ComLaude\Amqp\Tests\Unit;
 
 use ComLaude\Amqp\Amqp;
+use ComLaude\Amqp\Exceptions\AmqpPublishException;
 use ComLaude\Amqp\Tests\BaseTest;
+use Exception;
 use Mockery;
 
 /**
@@ -131,6 +133,26 @@ class AmqpTest extends BaseTest
         $this->assertEquals(2, $counter);
     }
 
+    public function testPublishWithException()
+    {
+        try {
+            $properties = array_merge($this->properties, [
+                'queue' => 'test_publish_failure',
+                'exchange' => ['this' => ['not' => ['supported']]],
+            ]);
+            $mockedFacade = new Amqp;
+            $mockedFacade->publish('example.route.exception', 'message', $properties);
+
+            throw new Exception('Expected AmqpPublishException was not thrown');
+        } catch (AmqpPublishException $e) {
+            $this->assertEquals('example.route.exception', $e->getRoutingKey());
+            $this->assertEquals('message', $e->getPayload());
+            $previous = $e->getPrevious();
+            $this->assertEquals('Array to string conversion', $previous->getMessage());
+            $this->assertEquals($e->getCode(), $previous->getCode());
+        }
+    }
+
     public function testEnableDisablePublishing()
     {
         $this->properties = array_merge(
@@ -247,6 +269,7 @@ class AmqpTest extends BaseTest
         $this->assertEquals(['messages' => 0, 'consumers' => 0], $mockedFacade->count($queue));
 
         $mockedFacade->publish('example.route.count', 'message');
+        usleep(5_000);
         $this->assertEquals(['messages' => 1, 'consumers' => 0], $mockedFacade->count($queue));
     }
 }
