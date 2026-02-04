@@ -3,7 +3,9 @@
 namespace ComLaude\Amqp;
 
 use Closure;
+use ComLaude\Amqp\Exceptions\AmqpPublishException;
 use PhpAmqpLib\Message\AMQPMessage;
+use Throwable;
 
 /**
  * @author David Krizanic <david.krizanic@comlaude.com>
@@ -52,10 +54,18 @@ class Amqp
         if (! $this->isEnabled()) {
             return;
         }
-        $message = new AMQPMessage($message, $messageProperties);
-        AmqpFactory::create(array_merge($properties, [
-            'queue' => 'publisher',
-        ]))->publish($route, $message);
+        try {
+            $amqpMessage = new AMQPMessage($message, $messageProperties);
+            AmqpFactory::create(array_merge($properties, [
+                'queue' => 'publisher',
+            ]))->publish($route, $amqpMessage);
+
+        } catch (Throwable $th) {
+            $exception = new AmqpPublishException('Failed to publish message to ' . $route, $th->getCode(), $th);
+            $exception->setRoutingKey($route);
+            $exception->setPayload($message);
+            throw $exception;
+        }
     }
 
     /**
