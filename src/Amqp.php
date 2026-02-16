@@ -174,7 +174,7 @@ class Amqp
      */
     public function requestWithResponse(string $route, string $message, array $properties = []): ?string
     {
-        $response = null;
+        $response = false;
         $this->request(
             $route,
             [$message],
@@ -183,7 +183,12 @@ class Amqp
             },
             $properties,
         );
-        return $response;
+        // If $response is still false, it means no message was received (timeout/failure)
+        // If $response is null, it means a message was received with no body (valid)
+        if ($response === false) {
+            return null; // true failure
+        }
+        return $response ?? ''; // empty string for valid empty response
     }
 
     /**
