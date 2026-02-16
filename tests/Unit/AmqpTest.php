@@ -248,6 +248,70 @@ class AmqpTest extends BaseTest
         ));
     }
 
+    public function testRequestWithResponseHandlerWithEmptyResponse()
+    {
+        $response = '';
+        $route = 'example.route.3';
+        $message = 'message3';
+        $mockedResponseMessage = Mockery::mock('PhpAmqpLib\Message\AMQPMessage[getBody]');
+        $mockedResponseMessage->shouldReceive('getBody')->once()->andReturn($response);
+        $mockedFacade = Mockery::mock('ComLaude\Amqp\Amqp[request]');
+        $mockedFacade->shouldReceive('request')->once()->with(
+            $route,
+            [$message],
+            Mockery::any(),
+            [],
+        )->andReturnUsing(function ($route, $messages, $callback, $properties) use ($mockedResponseMessage) {
+            $callback($mockedResponseMessage);
+            return true;
+        });
+        $this->assertEquals($response, $mockedFacade->requestWithResponse(
+            $route,
+            $message
+        ));
+    }
+
+    public function testRequestWithResponseHandlerWithNullResponse()
+    {
+        $route = 'example.route.3';
+        $message = 'message3';
+        $mockedResponseMessage = Mockery::mock('PhpAmqpLib\Message\AMQPMessage[getBody]');
+        $mockedResponseMessage->shouldReceive('getBody')->once()->andReturnNull();
+        $mockedFacade = Mockery::mock('ComLaude\Amqp\Amqp[request]');
+        $mockedFacade->shouldReceive('request')->once()->with(
+            $route,
+            [$message],
+            Mockery::any(),
+            [],
+        )->andReturnUsing(function ($route, $messages, $callback, $properties) use ($mockedResponseMessage) {
+            $callback($mockedResponseMessage);
+            return true;
+        });
+        $this->assertEquals('', $mockedFacade->requestWithResponse(
+            $route,
+            $message
+        ));
+    }
+
+    public function testRequestWithResponseHandlerWithTimeout()
+    {
+        $route = 'example.route.3';
+        $message = 'message3';
+        $mockedResponseMessage = Mockery::mock('PhpAmqpLib\Message\AMQPMessage[getBody]');
+        $mockedResponseMessage->shouldReceive('getBody')->never();
+        $mockedFacade = Mockery::mock('ComLaude\Amqp\Amqp[request]');
+        $mockedFacade->shouldReceive('request')->once()->with(
+            $route,
+            [$message],
+            Mockery::any(),
+            [],
+        )->andReturnFalse();
+        $this->assertEquals(null, $mockedFacade->requestWithResponse(
+            $route,
+            $message
+        ));
+    }
+
     public function testCount()
     {
         $mockedFacade = new Amqp;
