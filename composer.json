@@ -52,5 +52,14 @@
       }
     }
   },
-  "minimum-stability": "dev"
+  "minimum-stability": "dev",
+  "suggest": {
+    "open-telemetry/exporter-otlp": "^1.4",
+    "open-telemetry/opentelemetry-auto-guzzle": "^1.3",
+    "open-telemetry/opentelemetry-auto-laravel": "^1.7",
+    "open-telemetry/opentelemetry-auto-pdo": "^0.4.0",
+    "open-telemetry/sdk": "^1.14",
+    "open-telemetry/transport-grpc": "^1.2",
+    "grpc/grpc": "^1.80"
+  }
 }

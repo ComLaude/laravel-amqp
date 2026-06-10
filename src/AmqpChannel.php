@@ -90,6 +90,8 @@ class AmqpChannel
      */
     public function publish(string $route, AMQPMessage $message): AmqpChannel
     {
+        AmqpTraceContextPropagator::inject($message, $route, $this->properties['exchange']);
+
         // Before publishing the retry counter should be re-set
         $this->retry = $this->properties['reconnect_attempts'] ?? 3;
 
@@ -131,6 +133,7 @@ class AmqpChannel
         }
 
         $channelCallback = function ($message) use ($callback) {
+            AmqpTraceContextPropagator::extract($message);
             if ($message->get('redelivered') === true && $this->redeliveryCheckAndSkip($message)) {
                 return;
             }
@@ -252,6 +255,7 @@ class AmqpChannel
             false,
             false,
             function ($message) use (&$jobAccepted, &$jobsHandled, $requestId, $callback) {
+                AmqpTraceContextPropagator::extract($message);
                 if ($message->get('correlation_id') === $requestId . '_accepted') {
                     $jobAccepted = true;
                 }
@@ -323,6 +327,8 @@ class AmqpChannel
                 self::$lastAcknowledge[] = $message;
             }
             $this->reconnect();
+        } finally {
+            AmqpTraceContextPropagator::detach();
         }
     }
 
@@ -341,6 +347,8 @@ class AmqpChannel
                 self::$lastReject[] = [$message, $requeue];
             }
             $this->reconnect();
+        } finally {
+            AmqpTraceContextPropagator::detach();
         }
     }
 

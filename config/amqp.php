@@ -90,4 +90,18 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | OpenTelemetry tracing configuration
+    | This is assuming you have the OpenTelemetry PHP zero-code auto-instrumentation package installed and configured in your project.
+    | For more information, see https://opentelemetry.io/docs/instrumentation/php/
+    |
+    | When enabled, both the publisher and the consumer will automatically generate and propagate trace context,
+    | allowing you to see the full trace of a message from production to consumption in your tracing backend (e.g., Jaeger, Zipkin, etc.).
+    |--------------------------------------------------------------------------
+    */
+    'otel' => [
+        'enabled' => in_array(env('OTEL_PHP_AUTOLOAD_ENABLED', false), ['true', true, '1', 1], true),
+        'service_name' => env('OTEL_SERVICE_NAME', 'laravel-amqp-service'),
+    ],
 ];
