@@ -7,6 +7,8 @@ use ComLaude\Amqp\AmqpFactory;
 use ComLaude\Amqp\Tests\BaseTest;
 use PhpAmqpLib\Channel\AMQPChannel as AMQPChannelBase;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Exception\AMQPConnectionClosedException;
+use PhpAmqpLib\Exception\AMQPIOException;
 use PhpAmqpLib\Message\AMQPMessage;
 
 /**
@@ -57,6 +59,46 @@ class AmqpChannelTest extends BaseTest
         $this->assertInstanceOf(AMQPChannelBase::class, $this->master->getChannel());
         $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
         $this->assertInstanceOf(AMQPStreamConnection::class, $this->master->getConnection());
+    }
+
+    public function testCreateAmqpChannelAcrossClusters()
+    {
+        $this->master = AmqpFactory::create($this->properties);
+
+        $this->channel = $this->master->getChannel();
+        $this->connection = $this->master->getConnection();
+
+        $this->assertInstanceOf(AmqpChannel::class, $this->master);
+        $this->assertInstanceOf(AMQPChannelBase::class, $this->channel);
+        $this->assertInstanceOf(AMQPChannelBase::class, $this->master->getChannel());
+        $this->assertInstanceOf(AMQPStreamConnection::class, $this->connection);
+        $this->assertInstanceOf(AMQPStreamConnection::class, $this->master->getConnection());
+
+        // This should error because the additional cluster does not exist, but the point is
+        // that the previously opened channel is NOT re-used here, it tries to establish a
+        // new connection and channel with the new cluster properties
+        $this->expectException(AMQPIOException::class);
+        AmqpFactory::create(array_merge($this->properties, [
+            'port' => 5674,
+        ]));
+
+        // This should error because the vhost does not exist
+        $this->expectException(AMQPConnectionClosedException::class);
+        AmqpFactory::create(array_merge($this->properties, [
+            'vhost' => '1234',
+        ]));
+
+        // This should error because the host does not exist
+        $this->expectException(AMQPIOException::class);
+        AmqpFactory::create(array_merge($this->properties, [
+            'host' => 'invalid-path',
+        ]));
+
+        // This should error because the user is invalid
+        $this->expectException(AMQPConnectionClosedException::class);
+        AmqpFactory::create(array_merge($this->properties, [
+            'username' => 'wrong',
+        ]));
     }
 
     public function testPublishToChannel()
