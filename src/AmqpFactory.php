@@ -26,10 +26,11 @@ class AmqpFactory
         }
         $final = array_merge($base, $properties);
         // Try to find a matching channel first
-        if (isset(self::$channels[$final['exchange'] . '.' . $final['queue']])) {
-            return self::$channels[$final['exchange'] . '.' . $final['queue']];
+        $cacheKey = self::cacheKey($final);
+        if (isset(self::$channels[$cacheKey])) {
+            return self::$channels[$cacheKey];
         }
-        return self::$channels[$final['exchange'] . '.' . $final['queue']] = new AmqpChannel($final);
+        return self::$channels[$cacheKey] = new AmqpChannel($final);
     }
 
     /**
@@ -50,7 +51,16 @@ class AmqpFactory
     public static function clear(array $properties): void
     {
         if (! empty($properties['exchange']) && ! empty($properties['queue'])) {
-            unset(self::$channels[$properties['exchange'] . '.' . $properties['queue']]);
+            unset(self::$channels[self::cacheKey($properties)]);
         }
+    }
+
+    public static function cacheKey(array $properties): string
+    {
+        return $properties['exchange']
+            . '.' . $properties['queue']
+            . '.' . $properties['vhost']
+            . '.' . $properties['host']
+            . '.' . $properties['port'];
     }
 }
