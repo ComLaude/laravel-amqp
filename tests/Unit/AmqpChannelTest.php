@@ -93,6 +93,12 @@ class AmqpChannelTest extends BaseTest
         AmqpFactory::create(array_merge($this->properties, [
             'host' => 'invalid-path',
         ]));
+
+        // This should error because the user is invalid
+        $this->expectException(AMQPConnectionClosedException::class);
+        AmqpFactory::create(array_merge($this->properties, [
+            'username' => 'wrong',
+        ]));
     }
 
     public function testPublishToChannel()

@@ -61,6 +61,7 @@ class AmqpFactory
             . '.' . $properties['queue']
             . '.' . $properties['vhost']
             . '.' . $properties['host']
-            . '.' . $properties['port'];
+            . '.' . $properties['port']
+            . '.' . $properties['username'];
     }
 }
