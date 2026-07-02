@@ -2,7 +2,6 @@
 namespace ComLaude\Amqp;
 
 use Closure;
-use Throwable;
 use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Connection\Heartbeat\PCNTLHeartbeatSender;
@@ -110,11 +109,9 @@ class AmqpChannel
                     $this->reconnect(true);
                 }
             }
-        } catch (Throwable $e) {
-            OpenTelemetryAmqp::endPublish($e);
-            throw $e;
+        } finally {
+            OpenTelemetryAmqp::endPublish();
         }
-        OpenTelemetryAmqp::endPublish();
 
         return $this;
     }

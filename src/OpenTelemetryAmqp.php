@@ -35,15 +35,10 @@ class OpenTelemetryAmqp
         self::inject($message);
     }
 
-    public static function endPublish(?Throwable $exception = null): void
+    public static function endPublish(): void
     {
         if (self::$publisherSpan === null) {
             return;
-        }
-
-        if ($exception !== null) {
-            self::$publisherSpan->recordException($exception);
-            self::$publisherSpan->setStatus(\OpenTelemetry\API\Trace\StatusCode::STATUS_ERROR, $exception->getMessage());
         }
 
         self::$publisherScope?->detach();
