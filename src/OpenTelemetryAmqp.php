@@ -11,6 +11,18 @@ class OpenTelemetryAmqp
 {
     private const INSTRUMENTATION_NAME = 'comlaude/laravel-amqp';
 
+    // Holds the active consumer scope so it can be detached from acknowledge()/reject()
+    // to prevent trace context leaking between messages in long-lived consumers.
+    private static mixed $consumerScope = null;
+
+    public static function detachScope(): void
+    {
+        if (self::$consumerScope !== null) {
+            self::$consumerScope->detach();
+            self::$consumerScope = null;
+        }
+    }
+
     public static function publish($exchange, string $route, AMQPMessage $message, Closure $publish): void
     {
         if (! self::isAvailable()) {
@@ -52,7 +64,7 @@ class OpenTelemetryAmqp
             ->setAttributes(self::attributes($message->getExchange() ?? '', $message->getRoutingKey() ?? '', $message, 'process', $queue))
             ->startSpan();
 
-        $scope = $span->activate();
+        self::$consumerScope = $span->activate();
 
         try {
             return $consume();
@@ -61,7 +73,8 @@ class OpenTelemetryAmqp
             $span->setStatus(\OpenTelemetry\API\Trace\StatusCode::STATUS_ERROR, $exception->getMessage());
             throw $exception;
         } finally {
-            $scope->detach();
+            self::$consumerScope?->detach();
+            self::$consumerScope = null;
             $span->end();
         }
     }

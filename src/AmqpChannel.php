@@ -327,6 +327,8 @@ class AmqpChannel
                 self::$lastAcknowledge[] = $message;
             }
             $this->reconnect();
+        } finally {
+            OpenTelemetryAmqp::detachScope();
         }
     }
 
@@ -345,6 +347,8 @@ class AmqpChannel
                 self::$lastReject[] = [$message, $requeue];
             }
             $this->reconnect();
+        } finally {
+            OpenTelemetryAmqp::detachScope();
         }
     }
 
