@@ -52,5 +52,10 @@
       }
     }
   },
-  "minimum-stability": "dev"
+  "minimum-stability": "dev",
+  "suggest": {
+    "open-telemetry/sdk": "^1.14",
+    "open-telemetry/exporter-otlp": "^1.4",
+    "open-telemetry/opentelemetry-auto-laravel": "^1.7"
+  }
 }
