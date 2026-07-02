@@ -226,60 +226,65 @@ class AmqpChannel
      */
     public function request(string $route, array $messages, Closure $callback, array $properties = []): bool
     {
-        // Set up the queue we're going to listen to responses on
-        $this->declareQueue();
+        OpenTelemetryAmqp::beginRequest($route);
+        try {
+            // Set up the queue we're going to listen to responses on
+            $this->declareQueue();
 
-        // Publish all the messages
-        $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
-        $requestSender = AmqpFactory::createTemporary($properties);
-        foreach ($messages as $index => $message) {
-            // Tweak message to include reply-to to our exclusive queue
-            // we only need one correlation id for this entire request,
-            // together with index of each message we should be good
-            $requestSender->publish($route, new AMQPMessage($message, [
-                'reply_to' => $this->queue[0],
-                'correlation_id' => $requestId,
-            ]));
+            // Publish all the messages
+            $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
+            $requestSender = AmqpFactory::createTemporary($properties);
+            foreach ($messages as $index => $message) {
+                // Tweak message to include reply-to to our exclusive queue
+                // we only need one correlation id for this entire request,
+                // together with index of each message we should be good
+                $requestSender->publish($route, new AMQPMessage($message, [
+                    'reply_to' => $this->queue[0],
+                    'correlation_id' => $requestId,
+                ]));
+            }
+
+            // Expect somebody is listening response within configured timeout
+            // Expect a handled job within configured timout
+            $startTime = microtime(true);
+            $startHandleTime = microtime(true);
+            $jobAccepted = false;
+            $jobsHandled = 0;
+
+            // We check the exclusive queue for messages, either confirming or handling the job
+            $this->channel->basic_consume(
+                $this->queue[0],
+                'request-exclusive-listener',
+                false,
+                true,
+                false,
+                false,
+                function ($message) use (&$jobAccepted, &$jobsHandled, $requestId, $callback) {
+                    if ($message->get('correlation_id') === $requestId . '_accepted') {
+                        $jobAccepted = true;
+                    }
+                    if ($message->get('correlation_id') === $requestId . '_handled') {
+                        $jobsHandled++;
+                        $callback($message);
+                    }
+                },
+            );
+
+            while (
+                ($this->properties['request_accepted_timeout'] > microtime(true) - $startTime || $jobAccepted)
+                && $this->properties['request_handled_timeout'] > microtime(true) - $startHandleTime && $jobsHandled < count($messages)
+            ) {
+                usleep(10);
+                $this->channel->wait(null, true, $this->properties['request_accepted_timeout']);
+            }
+
+            $this->channel->basic_cancel('request-exclusive-listener');
+            $this->channel->queue_delete($this->queue[0]);
+
+            return $jobsHandled == count($messages);
+        } finally {
+            OpenTelemetryAmqp::endRequest();
         }
-
-        // Expect somebody is listening response within configured timeout
-        // Expect a handled job within configured timout
-        $startTime = microtime(true);
-        $startHandleTime = microtime(true);
-        $jobAccepted = false;
-        $jobsHandled = 0;
-
-        // We check the exclusive queue for messages, either confirming or handling the job
-        $this->channel->basic_consume(
-            $this->queue[0],
-            'request-exclusive-listener',
-            false,
-            true,
-            false,
-            false,
-            function ($message) use (&$jobAccepted, &$jobsHandled, $requestId, $callback) {
-                if ($message->get('correlation_id') === $requestId . '_accepted') {
-                    $jobAccepted = true;
-                }
-                if ($message->get('correlation_id') === $requestId . '_handled') {
-                    $jobsHandled++;
-                    $callback($message);
-                }
-            },
-        );
-
-        while (
-            ($this->properties['request_accepted_timeout'] > microtime(true) - $startTime || $jobAccepted)
-            && $this->properties['request_handled_timeout'] > microtime(true) - $startHandleTime && $jobsHandled < count($messages)
-        ) {
-            usleep(10);
-            $this->channel->wait(null, true, $this->properties['request_accepted_timeout']);
-        }
-
-        $this->channel->basic_cancel('request-exclusive-listener');
-        $this->channel->queue_delete($this->queue[0]);
-
-        return $jobsHandled == count($messages);
     }
 
     /**

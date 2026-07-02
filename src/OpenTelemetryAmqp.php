@@ -14,6 +14,9 @@ class OpenTelemetryAmqp
     private static mixed $publisherSpan = null;
     private static mixed $publisherScope = null;
 
+    private static mixed $requestSpan = null;
+    private static mixed $requestScope = null;
+
     // Held statically so endConsume() can close them from acknowledge()/reject(),
     // preventing trace context leaking between messages in long-lived consumers.
     private static mixed $consumerSpan = null;
@@ -45,6 +48,35 @@ class OpenTelemetryAmqp
         self::$publisherSpan->end();
         self::$publisherScope = null;
         self::$publisherSpan = null;
+    }
+
+    public static function beginRequest(string $route): void
+    {
+        if (! self::isAvailable()) {
+            return;
+        }
+
+        self::$requestSpan = self::tracer()
+            ->spanBuilder(sprintf('AMQP request %s', $route))
+            ->setSpanKind(\OpenTelemetry\API\Trace\SpanKind::KIND_CLIENT)
+            ->setAttribute('messaging.system', 'rabbitmq')
+            ->setAttribute('messaging.operation', 'request')
+            ->setAttribute('messaging.rabbitmq.routing_key', $route)
+            ->startSpan();
+
+        self::$requestScope = self::$requestSpan->activate();
+    }
+
+    public static function endRequest(): void
+    {
+        if (self::$requestSpan === null) {
+            return;
+        }
+
+        self::$requestScope?->detach();
+        self::$requestSpan->end();
+        self::$requestScope = null;
+        self::$requestSpan = null;
     }
 
     public static function beginConsume(string $queue, AMQPMessage $message): void
