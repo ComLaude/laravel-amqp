@@ -11,16 +11,42 @@ class OpenTelemetryAmqp
 {
     private const INSTRUMENTATION_NAME = 'comlaude/laravel-amqp';
 
-    // Holds the active consumer scope so it can be detached from acknowledge()/reject()
-    // to prevent trace context leaking between messages in long-lived consumers.
+    // Held statically so endConsume() can close them from acknowledge()/reject(),
+    // preventing trace context leaking between messages in long-lived consumers.
+    private static mixed $consumerSpan = null;
     private static mixed $consumerScope = null;
 
-    public static function detachScope(): void
+    public static function beginConsume(string $queue, AMQPMessage $message): void
     {
-        if (self::$consumerScope !== null) {
-            self::$consumerScope->detach();
-            self::$consumerScope = null;
+        if (! self::isAvailable()) {
+            return;
         }
+
+        self::$consumerSpan = self::tracer()
+            ->spanBuilder(sprintf('AMQP process %s', $queue))
+            ->setParent(self::extract($message))
+            ->setSpanKind(\OpenTelemetry\API\Trace\SpanKind::KIND_CONSUMER)
+            ->setAttributes(self::attributes($message->getExchange() ?? '', $message->getRoutingKey() ?? '', $message, 'process', $queue))
+            ->startSpan();
+
+        self::$consumerScope = self::$consumerSpan->activate();
+    }
+
+    public static function endConsume(?Throwable $exception = null): void
+    {
+        if (self::$consumerSpan === null) {
+            return;
+        }
+
+        if ($exception !== null) {
+            self::$consumerSpan->recordException($exception);
+            self::$consumerSpan->setStatus(\OpenTelemetry\API\Trace\StatusCode::STATUS_ERROR, $exception->getMessage());
+        }
+
+        self::$consumerScope?->detach();
+        self::$consumerSpan->end();
+        self::$consumerScope = null;
+        self::$consumerSpan = null;
     }
 
     public static function publish($exchange, string $route, AMQPMessage $message, Closure $publish): void
@@ -47,34 +73,6 @@ class OpenTelemetryAmqp
             throw $exception;
         } finally {
             $scope->detach();
-            $span->end();
-        }
-    }
-
-    public static function consume(string $queue, AMQPMessage $message, Closure $consume)
-    {
-        if (! self::isAvailable()) {
-            return $consume();
-        }
-
-        $span = self::tracer()
-            ->spanBuilder(sprintf('AMQP process %s', $queue))
-            ->setParent(self::extract($message))
-            ->setSpanKind(\OpenTelemetry\API\Trace\SpanKind::KIND_CONSUMER)
-            ->setAttributes(self::attributes($message->getExchange() ?? '', $message->getRoutingKey() ?? '', $message, 'process', $queue))
-            ->startSpan();
-
-        self::$consumerScope = $span->activate();
-
-        try {
-            return $consume();
-        } catch (Throwable $exception) {
-            $span->recordException($exception);
-            $span->setStatus(\OpenTelemetry\API\Trace\StatusCode::STATUS_ERROR, $exception->getMessage());
-            throw $exception;
-        } finally {
-            self::$consumerScope?->detach();
-            self::$consumerScope = null;
             $span->end();
         }
     }
