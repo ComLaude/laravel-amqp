@@ -93,19 +93,24 @@ class AmqpChannel
         // Before publishing the retry counter should be re-set
         $this->retry = $this->properties['reconnect_attempts'] ?? 3;
 
-        // We will re-attempt the publish method after reconnecting if necessary, up to this->retry times
-        while ($this->retry >= 0) {
-            // If a connection-level issue occurs, atempt to recconnect $this->retry times
-            try {
-                // Fire the basic command and return the result to the caller
-                $this->channel->basic_publish($message, $this->properties['exchange'], $route);
-                break;
-            } catch (AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
-                if (--$this->retry < 0) {
-                    throw $e;
+        OpenTelemetryAmqp::beginPublish($this->properties['exchange'] ?? '', $route, $message);
+        try {
+            // We will re-attempt the publish method after reconnecting if necessary, up to this->retry times
+            while ($this->retry >= 0) {
+                // If a connection-level issue occurs, atempt to recconnect $this->retry times
+                try {
+                    // Fire the basic command and return the result to the caller
+                    $this->channel->basic_publish($message, $this->properties['exchange'], $route);
+                    break;
+                } catch (AMQPHeartbeatMissedException | AMQPChannelClosedException | AMQPConnectionClosedException $e) {
+                    if (--$this->retry < 0) {
+                        throw $e;
+                    }
+                    $this->reconnect(true);
                 }
-                $this->reconnect(true);
             }
+        } finally {
+            OpenTelemetryAmqp::endPublish();
         }
 
         return $this;
@@ -134,6 +139,7 @@ class AmqpChannel
             if ($message->get('redelivered') === true && $this->redeliveryCheckAndSkip($message)) {
                 return;
             }
+            OpenTelemetryAmqp::beginConsume($this->properties['queue'], $message);
             if ($message->has('reply_to') && $message->has('correlation_id')) {
                 // Publish job is accepted message, to inform the requestor that it's being worked on
                 $responseChannel = AmqpFactory::create(['exchange' => '']);
@@ -220,60 +226,65 @@ class AmqpChannel
      */
     public function request(string $route, array $messages, Closure $callback, array $properties = []): bool
     {
-        // Set up the queue we're going to listen to responses on
-        $this->declareQueue();
+        OpenTelemetryAmqp::beginRequest($route);
+        try {
+            // Set up the queue we're going to listen to responses on
+            $this->declareQueue();
 
-        // Publish all the messages
-        $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
-        $requestSender = AmqpFactory::createTemporary($properties);
-        foreach ($messages as $index => $message) {
-            // Tweak message to include reply-to to our exclusive queue
-            // we only need one correlation id for this entire request,
-            // together with index of each message we should be good
-            $requestSender->publish($route, new AMQPMessage($message, [
-                'reply_to' => $this->queue[0],
-                'correlation_id' => $requestId,
-            ]));
+            // Publish all the messages
+            $requestId = $properties['correlation_id'] ?? uniqid() . '_' . count($messages);
+            $requestSender = AmqpFactory::createTemporary($properties);
+            foreach ($messages as $index => $message) {
+                // Tweak message to include reply-to to our exclusive queue
+                // we only need one correlation id for this entire request,
+                // together with index of each message we should be good
+                $requestSender->publish($route, new AMQPMessage($message, [
+                    'reply_to' => $this->queue[0],
+                    'correlation_id' => $requestId,
+                ]));
+            }
+
+            // Expect somebody is listening response within configured timeout
+            // Expect a handled job within configured timout
+            $startTime = microtime(true);
+            $startHandleTime = microtime(true);
+            $jobAccepted = false;
+            $jobsHandled = 0;
+
+            // We check the exclusive queue for messages, either confirming or handling the job
+            $this->channel->basic_consume(
+                $this->queue[0],
+                'request-exclusive-listener',
+                false,
+                true,
+                false,
+                false,
+                function ($message) use (&$jobAccepted, &$jobsHandled, $requestId, $callback) {
+                    if ($message->get('correlation_id') === $requestId . '_accepted') {
+                        $jobAccepted = true;
+                    }
+                    if ($message->get('correlation_id') === $requestId . '_handled') {
+                        $jobsHandled++;
+                        $callback($message);
+                    }
+                },
+            );
+
+            while (
+                ($this->properties['request_accepted_timeout'] > microtime(true) - $startTime || $jobAccepted)
+                && $this->properties['request_handled_timeout'] > microtime(true) - $startHandleTime && $jobsHandled < count($messages)
+            ) {
+                usleep(10);
+                $this->channel->wait(null, true, $this->properties['request_accepted_timeout']);
+            }
+
+            $this->channel->basic_cancel('request-exclusive-listener');
+            $this->channel->queue_delete($this->queue[0]);
+
+            return $jobsHandled == count($messages);
+        } finally {
+            OpenTelemetryAmqp::endRequest();
         }
-
-        // Expect somebody is listening response within configured timeout
-        // Expect a handled job within configured timout
-        $startTime = microtime(true);
-        $startHandleTime = microtime(true);
-        $jobAccepted = false;
-        $jobsHandled = 0;
-
-        // We check the exclusive queue for messages, either confirming or handling the job
-        $this->channel->basic_consume(
-            $this->queue[0],
-            'request-exclusive-listener',
-            false,
-            true,
-            false,
-            false,
-            function ($message) use (&$jobAccepted, &$jobsHandled, $requestId, $callback) {
-                if ($message->get('correlation_id') === $requestId . '_accepted') {
-                    $jobAccepted = true;
-                }
-                if ($message->get('correlation_id') === $requestId . '_handled') {
-                    $jobsHandled++;
-                    $callback($message);
-                }
-            },
-        );
-
-        while (
-            ($this->properties['request_accepted_timeout'] > microtime(true) - $startTime || $jobAccepted)
-            && $this->properties['request_handled_timeout'] > microtime(true) - $startHandleTime && $jobsHandled < count($messages)
-        ) {
-            usleep(10);
-            $this->channel->wait(null, true, $this->properties['request_accepted_timeout']);
-        }
-
-        $this->channel->basic_cancel('request-exclusive-listener');
-        $this->channel->queue_delete($this->queue[0]);
-
-        return $jobsHandled == count($messages);
     }
 
     /**
@@ -323,6 +334,8 @@ class AmqpChannel
                 self::$lastAcknowledge[] = $message;
             }
             $this->reconnect();
+        } finally {
+            OpenTelemetryAmqp::endConsume();
         }
     }
 
@@ -341,6 +354,8 @@ class AmqpChannel
                 self::$lastReject[] = [$message, $requeue];
             }
             $this->reconnect();
+        } finally {
+            OpenTelemetryAmqp::endConsume();
         }
     }
 
