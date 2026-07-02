@@ -11,10 +11,46 @@ class OpenTelemetryAmqp
 {
     private const INSTRUMENTATION_NAME = 'comlaude/laravel-amqp';
 
+    private static mixed $publisherSpan = null;
+    private static mixed $publisherScope = null;
+
     // Held statically so endConsume() can close them from acknowledge()/reject(),
     // preventing trace context leaking between messages in long-lived consumers.
     private static mixed $consumerSpan = null;
     private static mixed $consumerScope = null;
+
+    public static function beginPublish(string $exchange, string $route, AMQPMessage $message): void
+    {
+        if (! self::isAvailable()) {
+            return;
+        }
+
+        self::$publisherSpan = self::tracer()
+            ->spanBuilder(sprintf('AMQP publish %s', $route))
+            ->setSpanKind(\OpenTelemetry\API\Trace\SpanKind::KIND_PRODUCER)
+            ->setAttributes(self::attributes($exchange, $route, $message, 'publish'))
+            ->startSpan();
+
+        self::$publisherScope = self::$publisherSpan->activate();
+        self::inject($message);
+    }
+
+    public static function endPublish(?Throwable $exception = null): void
+    {
+        if (self::$publisherSpan === null) {
+            return;
+        }
+
+        if ($exception !== null) {
+            self::$publisherSpan->recordException($exception);
+            self::$publisherSpan->setStatus(\OpenTelemetry\API\Trace\StatusCode::STATUS_ERROR, $exception->getMessage());
+        }
+
+        self::$publisherScope?->detach();
+        self::$publisherSpan->end();
+        self::$publisherScope = null;
+        self::$publisherSpan = null;
+    }
 
     public static function beginConsume(string $queue, AMQPMessage $message): void
     {
@@ -47,34 +83,6 @@ class OpenTelemetryAmqp
         self::$consumerSpan->end();
         self::$consumerScope = null;
         self::$consumerSpan = null;
-    }
-
-    public static function publish($exchange, string $route, AMQPMessage $message, Closure $publish): void
-    {
-        if (! self::isAvailable()) {
-            $publish();
-            return;
-        }
-
-        $span = self::tracer()
-            ->spanBuilder(sprintf('AMQP publish %s', $route))
-            ->setSpanKind(\OpenTelemetry\API\Trace\SpanKind::KIND_PRODUCER)
-            ->setAttributes(self::attributes((string) $exchange, $route, $message, 'publish'))
-            ->startSpan();
-
-        $scope = $span->activate();
-
-        try {
-            self::inject($message);
-            $publish();
-        } catch (Throwable $exception) {
-            $span->recordException($exception);
-            $span->setStatus(\OpenTelemetry\API\Trace\StatusCode::STATUS_ERROR, $exception->getMessage());
-            throw $exception;
-        } finally {
-            $scope->detach();
-            $span->end();
-        }
     }
 
     private static function isAvailable(): bool

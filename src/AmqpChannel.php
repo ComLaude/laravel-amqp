@@ -2,6 +2,7 @@
 namespace ComLaude\Amqp;
 
 use Closure;
+use Throwable;
 use ComLaude\Amqp\Exceptions\AmqpChannelSilentlyRestartedException;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Connection\Heartbeat\PCNTLHeartbeatSender;
@@ -93,7 +94,8 @@ class AmqpChannel
         // Before publishing the retry counter should be re-set
         $this->retry = $this->properties['reconnect_attempts'] ?? 3;
 
-        OpenTelemetryAmqp::publish($this->properties['exchange'] ?? '', $route, $message, function () use ($route, $message) {
+        OpenTelemetryAmqp::beginPublish($this->properties['exchange'] ?? '', $route, $message);
+        try {
             // We will re-attempt the publish method after reconnecting if necessary, up to this->retry times
             while ($this->retry >= 0) {
                 // If a connection-level issue occurs, atempt to recconnect $this->retry times
@@ -108,7 +110,11 @@ class AmqpChannel
                     $this->reconnect(true);
                 }
             }
-        });
+        } catch (Throwable $e) {
+            OpenTelemetryAmqp::endPublish($e);
+            throw $e;
+        }
+        OpenTelemetryAmqp::endPublish();
 
         return $this;
     }
